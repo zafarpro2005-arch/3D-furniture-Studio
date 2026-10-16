@@ -65,8 +65,10 @@
       };
     }
 
-    function toCm(e, v) {
-      var r = canvas.getBoundingClientRect();
+    // r — положение холста; при перетаскивании берём то, что было при захвате:
+    // если над планом сменится сообщение и холст сдвинется, предмет не должен прыгать
+    function toCm(e, v, r) {
+      r = r || canvas.getBoundingClientRect();
       return { x: (e.clientX - r.left - v.ox) / v.scale, y: (e.clientY - r.top - v.oy) / v.scale };
     }
 
@@ -274,11 +276,13 @@
 
     canvas.addEventListener('pointerdown', function (e) {
       if (e.button !== 0) return;
-      var p = toCm(e, view());
+      // положение холста — до onSelect: новое сообщение над планом может сдвинуть холст
+      var rect = canvas.getBoundingClientRect();
+      var p = toCm(e, view(), rect);
       var item = hitTest(p);
       opts.onSelect(item ? item.id : null);
       if (!item) return;
-      drag = { id: item.id, dx: p.x - item.x, dy: p.y - item.y };
+      drag = { id: item.id, dx: p.x - item.x, dy: p.y - item.y, rect: rect };
       canvas.setPointerCapture(e.pointerId);
       canvas.className = 'grabbing';
       e.preventDefault();
@@ -286,7 +290,7 @@
 
     canvas.addEventListener('pointermove', function (e) {
       var v = view();
-      var p = toCm(e, v);
+      var p = toCm(e, v, drag && drag.rect);
       if (!drag) {
         canvas.className = hitTest(p) ? 'grab' : '';
         return;

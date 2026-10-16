@@ -59,7 +59,7 @@
       close3d: 'Закрыть 3D',
       sceneInfo: 'Комната {w}×{l}×{h} см · предметов: {n}',
       hintOrbit: 'Тяните мышью — вращать, колесо — приблизить. «Войти в комнату» или Enter — пройтись внутри.',
-      hintWalk: 'WASD или стрелки — идти, Shift — быстрее, мышь — смотреть (кликните по сцене). Q — вид сверху, Esc — выход.',
+      hintWalk: 'WASD или стрелки — идти, Shift — быстрее, мышь — смотреть (кликните по сцене или зажмите и тяните). Q — вид сверху, Esc — выход.',
       walkPos: 'Вы внутри: x={x} см, y={y} см',
       noSpaceWalk: 'Войти нельзя: в комнате нет свободного места, чтобы встать.',
       noWebgl: '3D-вид недоступен: браузер не поддерживает WebGL или видеокарта сейчас недоступна. План работает как обычно.',
@@ -131,8 +131,8 @@
       liftHint: 'Кнопки или клавиши: PgUp/PgDn — соседний этаж, 1–9, 0 — 10-й, P — паркинг.',
       doorOpen: 'E — открыть дверь',
       doorClose: 'E — закрыть дверь',
-      hintWalkDoors: 'WASD — идти, мышь — смотреть (кликните по сцене), E — открыть/закрыть дверь, Shift — быстрее, Q — вид сверху, Esc — выход.',
-      hintWalkLift: 'WASD — идти, мышь — смотреть, E — двери. Лифты — в конце общего коридора: зайдите в кабину и выберите этаж или паркинг. Q — вид сверху, Esc — выход.'
+      hintWalkDoors: 'WASD — идти, мышь — смотреть (кликните по сцене или зажмите и тяните), E — открыть/закрыть дверь, Shift — быстрее, Q — вид сверху, Esc — выход.',
+      hintWalkLift: 'WASD — идти, мышь — смотреть (зажмите и тяните), E — двери. Лифты — в конце общего коридора: зайдите в кабину и выберите этаж или паркинг. Q — вид сверху, Esc — выход.'
     },
     uz: {
       title: 'Buyurtma mebel: xona rejalashtiruvchisi',
@@ -190,7 +190,7 @@
       close3d: '3D ni yopish',
       sceneInfo: 'Xona {w}×{l}×{h} sm · buyumlar: {n}',
       hintOrbit: "Sichqoncha bilan torting — aylantirish, g'ildirak — yaqinlashtirish. «Xonaga kirish» yoki Enter — ichida yurish.",
-      hintWalk: "WASD yoki strelkalar — yurish, Shift — tezroq, sichqoncha — qarash (sahnani bosing). Q — yuqoridan ko'rish, Esc — chiqish.",
+      hintWalk: "WASD yoki strelkalar — yurish, Shift — tezroq, sichqoncha — qarash (sahnani bosing yoki bosib turib torting). Q — yuqoridan ko'rish, Esc — chiqish.",
       walkPos: 'Siz ichkaridasiz: x={x} sm, y={y} sm',
       noSpaceWalk: "Kirib bo'lmaydi: xonada turish uchun bo'sh joy yo'q.",
       noWebgl: "3D ko'rinish mavjud emas: brauzer WebGL ni qo'llab-quvvatlamaydi yoki videokarta hozir ishlamayapti. Reja odatdagidek ishlaydi.",
@@ -262,8 +262,8 @@
       liftHint: "Tugmalar yoki: PgUp/PgDn — qo'shni qavat, 1–9, 0 — 10-qavat, P — avtoturargoh.",
       doorOpen: 'E — eshikni ochish',
       doorClose: 'E — eshikni yopish',
-      hintWalkDoors: "WASD — yurish, sichqoncha — qarash (sahnani bosing), E — eshikni ochish/yopish, Shift — tezroq, Q — yuqoridan ko'rish, Esc — chiqish.",
-      hintWalkLift: "WASD — yurish, sichqoncha — qarash, E — eshiklar. Liftlar umumiy yo'lak oxirida: kabinaga kiring va qavatni yoki avtoturargohni tanlang. Q — yuqoridan, Esc — chiqish."
+      hintWalkDoors: "WASD — yurish, sichqoncha — qarash (sahnani bosing yoki bosib turib torting), E — eshikni ochish/yopish, Shift — tezroq, Q — yuqoridan ko'rish, Esc — chiqish.",
+      hintWalkLift: "WASD — yurish, sichqoncha — qarash (bosib turib torting), E — eshiklar. Liftlar umumiy yo'lak oxirida: kabinaga kiring va qavatni yoki avtoturargohni tanlang. Q — yuqoridan, Esc — chiqish."
     }
   };
 

@@ -670,20 +670,26 @@
       S.walk.pitch = Math.max(-1.3, Math.min(1.3, S.walk.pitch - dy * 0.0028));
     }
 
+    // Захват указателя для прогулки. Браузер может отказать (встроенное окно, iframe, повтор сразу после Esc),
+    // а новые браузеры возвращают Promise — его отказ гасим, чтобы не сыпать ошибки в консоль.
+    function requestLock() {
+      if (document.pointerLockElement === canvas || !canvas.requestPointerLock) return;
+      try {
+        var p = canvas.requestPointerLock();
+        if (p && p.catch) p.catch(function () {});
+      } catch (err) {}
+    }
+
+    // Нажатие всегда начинает перетаскивание: в обзоре — вращение, в прогулке — поворот взгляда.
+    // Мышью в прогулке ещё и просим захват; если он получен, взгляд крутит mousemove, а перетаскивание молчит.
     canvas.addEventListener('pointerdown', function (e) {
-      if (S.mode === 'walk' && e.pointerType === 'mouse') {
-        if (document.pointerLockElement !== canvas && canvas.requestPointerLock && liftEl.hidden) {
-          try { canvas.requestPointerLock(); } catch (err) {}
-          return;
-        }
-        if (!liftEl.hidden) { S.drag = { x: e.clientX, y: e.clientY, id: e.pointerId }; canvas.setPointerCapture(e.pointerId); }
-        return;
-      }
       S.drag = { x: e.clientX, y: e.clientY, id: e.pointerId };
       canvas.setPointerCapture(e.pointerId);
+      if (S.mode === 'walk' && e.pointerType === 'mouse' && liftEl.hidden) requestLock();
     });
     canvas.addEventListener('pointermove', function (e) {
       if (!S.drag || S.drag.id !== e.pointerId) return;
+      if (S.mode === 'walk' && document.pointerLockElement === canvas) return; // без двойного поворота
       var dx = e.clientX - S.drag.x, dy = e.clientY - S.drag.y;
       S.drag.x = e.clientX; S.drag.y = e.clientY;
       if (S.mode === 'orbit') {

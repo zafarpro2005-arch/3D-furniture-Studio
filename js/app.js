@@ -25,10 +25,16 @@
     },
     onMove: function () {
       state.notice = null;
+      dragging = true;
       update();
     },
-    onDrop: function () { update(); }
+    onDrop: function () {
+      dragging = false;
+      $('message').style.minHeight = '';
+      update();
+    }
   });
+  var dragging = false;
 
   // ---------- имена ----------
   function catalogEntry(id) {
@@ -55,6 +61,8 @@
 
   function showMessage(text, bad) {
     var box = $('message');
+    // пока тащат мебель, сообщение может только расти: иначе холст под ним прыгает вверх-вниз
+    if (dragging) box.style.minHeight = box.offsetHeight + 'px';
     box.textContent = text;
     box.className = 'message' + (bad ? ' bad' : '');
   }

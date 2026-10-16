@@ -88,7 +88,44 @@
     var has = !!selected();
     $('rotateBtn').disabled = !has;
     $('findBtn').disabled = !has;
+    $('dupBtn').disabled = !has;
     $('removeBtn').disabled = !has;
+    save();
+  }
+
+  // ---------- сохранение между перезагрузками ----------
+  var STORE_KEY = 'planner-state';
+
+  function save() {
+    var items = state.items.map(function (it) {
+      return { id: it.id, catalogId: it.catalogId, num: it.num, w: it.w, d: it.d, h: it.h, x: it.x, y: it.y, rot: it.rot };
+    });
+    try { localStorage.setItem(STORE_KEY, JSON.stringify({ room: state.room, items: items, nextId: state.nextId })); } catch (e) {}
+  }
+
+  // Возвращает сохранённый план в state и поля комнаты; битые данные молча пропускаем
+  function restore() {
+    var data;
+    try { data = JSON.parse(localStorage.getItem(STORE_KEY)); } catch (e) { return; }
+    if (!data || typeof data !== 'object') return;
+    function num(v) { return typeof v === 'number' && isFinite(v); }
+    var r = data.room;
+    if (r && num(r.width) && num(r.length) && num(r.height)) {
+      $('roomW').value = r.width;
+      $('roomL').value = r.length;
+      $('roomH').value = r.height;
+    }
+    if (!Array.isArray(data.items)) return;
+    state.items = data.items.filter(function (it) {
+      return it && typeof it.catalogId === 'string' && num(it.id) && num(it.num) &&
+        num(it.w) && num(it.d) && num(it.h) && num(it.x) && num(it.y) && (it.rot === 0 || it.rot === 90);
+    }).map(function (it) {
+      var item = { id: it.id, catalogId: it.catalogId, num: it.num, w: it.w, d: it.d, h: it.h, x: it.x, y: it.y, rot: it.rot, errors: [] };
+      item.name = itemName(item);
+      return item;
+    });
+    var maxId = state.items.reduce(function (m, it) { return Math.max(m, it.id); }, 0);
+    state.nextId = Math.max(maxId + 1, num(data.nextId) ? data.nextId : 1);
   }
 
   function renderList() {
@@ -168,16 +205,26 @@
   function addItem() {
     var c = catalogEntry($('fType').value);
     if (!c) return;
-    var num = state.items.filter(function (it) { return it.catalogId === c.id; })
+    placeNew(c.id, readInt($('fW'), 10, 1000), readInt($('fD'), 10, 1000), readInt($('fH'), 10, 400), 0);
+  }
+
+  // Копия выбранного предмета: те же размеры и поворот, следующий номер в имени
+  function duplicateSelected() {
+    var src = selected();
+    if (!src) return showMessage(t('selectFirst'), true);
+    placeNew(src.catalogId, src.w, src.d, src.h, src.rot);
+  }
+
+  // Новый предмет: подбираем ему место, а если места нет — оставляем в углу с объяснением
+  function placeNew(catalogId, w, d, h, rot) {
+    var num = state.items.filter(function (it) { return it.catalogId === catalogId; })
       .reduce(function (m, it) { return Math.max(m, it.num); }, 0) + 1;
     var item = {
       id: state.nextId++,
-      catalogId: c.id,
+      catalogId: catalogId,
       num: num,
-      w: readInt($('fW'), 10, 1000),
-      d: readInt($('fD'), 10, 1000),
-      h: readInt($('fH'), 10, 400),
-      x: 0, y: 0, rot: 0, errors: []
+      w: w, d: d, h: h,
+      x: 0, y: 0, rot: rot, errors: []
     };
     item.name = itemName(item);
     state.items.push(item);
@@ -257,19 +304,46 @@
   $('addBtn').addEventListener('click', addItem);
   $('rotateBtn').addEventListener('click', rotateSelected);
   $('findBtn').addEventListener('click', findPlace);
+  $('dupBtn').addEventListener('click', duplicateSelected);
   $('removeBtn').addEventListener('click', removeSelected);
+
+  // Сдвиг стрелками: 1 см, с Shift — 10 см; за стену пускаем так же, как при перетаскивании
+  var MOVE_SLACK = 100;
+  var ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  function moveSelected(dx, dy) {
+    var item = selected();
+    if (!item) return false;
+    var s = geo.effSize(item);
+    item.x = Math.min(state.room.width - s.w + MOVE_SLACK, Math.max(-MOVE_SLACK, item.x + dx));
+    item.y = Math.min(state.room.length - s.d + MOVE_SLACK, Math.max(-MOVE_SLACK, item.y + dy));
+    state.notice = null;
+    update();
+    return true;
+  }
 
   document.addEventListener('keydown', function (e) {
     if (scene.isOpen()) return; // в 3D клавиши управляют движением
     var tag = document.activeElement && document.activeElement.tagName;
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+    // Ctrl+D (по коду клавиши — работает и в русской раскладке); без выбора — обычная закладка браузера
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.code === 'KeyD') {
+      if (selected()) { duplicateSelected(); e.preventDefault(); }
+      return;
+    }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    var dir = ARROWS[e.key];
+    if (dir) {
+      var step = e.shiftKey ? 10 : 1;
+      if (moveSelected(dir[0] * step, dir[1] * step)) e.preventDefault();
+      return;
+    }
     var k = e.key.toLowerCase();
     if (k === 'r' || k === 'к') { rotateSelected(); e.preventDefault(); }
     else if (e.key === 'Delete') { removeSelected(); e.preventDefault(); }
   });
 
   // ---------- старт ----------
+  restore(); // до readRoom: иначе первый update() сохранит пустой план поверх сохранённого
   readRoom();
   Planner.shell.init({
     onLang: function () { fillCatalog(); renameAll(); update(); },
@@ -285,6 +359,7 @@
       state.catalog = list;
       fillCatalog();
       applyPreset();
+      renameAll(); // имена восстановленных предметов — по каталогу и текущему языку
       update();
     })
     .catch(function () { showMessage(t('loadError'), true); });

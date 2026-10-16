@@ -667,3 +667,4 @@ h2.hero-title { display: block; margin: 0 0 8px; font-size: 30px; font-weight: 7
 .scene-pad { grid-template-rows: repeat(2, 48px); }
 .scene-pad .use { grid-column: 3; grid-row: 1; font-weight: 700; }
 .apt-actions .btn.wide { grid-column: 1 / -1; }
+.apt-actions .message { grid-column: 1 / -1; margin: 0; }

@@ -123,6 +123,7 @@
   function renderApt() {
     var a = byNumber[state.selected];
     $('aptTitle').textContent = t('aptTitle', { n: a.number });
+    $('sceneError').hidden = true; // другая квартира или язык — старое сообщение об ошибке 3D не актуально
 
     var badges = [
       [t('roomsN', { n: a.rooms }), ''],
@@ -274,7 +275,8 @@
     onLift: function (id) { return id === 'P' ? parkingWorld(null) : floorWorldFor(+id, null); },
     levelName: function (id) { return id === 'P' ? t('parkingLevel') : t('floorN', { n: id }); },
     onClose: function () {},
-    onError: function (text) { $('aptTitle').textContent = text; }
+    // ошибку 3D показываем под кнопками, заголовок квартиры не трогаем
+    onError: function (text) { $('sceneError').textContent = text; $('sceneError').hidden = false; }
   });
   Planner.scene = scene;
   $('walkBtn').addEventListener('click', function () { sceneMode = 'floor'; scene.open(true); });

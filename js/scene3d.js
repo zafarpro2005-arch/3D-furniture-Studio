@@ -160,23 +160,48 @@
 
     var gl = canvas.getContext('webgl', { antialias: true }) || canvas.getContext('experimental-webgl');
     var prog, buf, glassBuf, doorBuf, vertexCount = 0, glassCount = 0, doorCount = 0, loc = {};
-    if (gl) {
-      prog = gl.createProgram();
-      gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VS));
-      gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, FS));
-      gl.linkProgram(prog);
-      loc = {
-        pos: gl.getAttribLocation(prog, 'aPos'),
-        norm: gl.getAttribLocation(prog, 'aNorm'),
-        col: gl.getAttribLocation(prog, 'aCol'),
-        mvp: gl.getUniformLocation(prog, 'uMVP'),
-        cut: gl.getUniformLocation(prog, 'uCut'),
-        glass: gl.getUniformLocation(prog, 'uGlass')
-      };
-      buf = gl.createBuffer();
-      glassBuf = gl.createBuffer();
-      doorBuf = gl.createBuffer();
+    var glReady = false; // шейдеры и буферы созданы, контекст жив
+
+    // Шейдеры и буферы. Сбой WebGL (контекст потерян ещё до старта, драйвер не собрал шейдер)
+    // не должен ронять страницу: без 3D планировщик и новостройка работают дальше.
+    function initGL() {
+      glReady = false;
+      if (!gl || gl.isContextLost()) return false;
+      try {
+        prog = gl.createProgram();
+        gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VS));
+        gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, FS));
+        gl.linkProgram(prog);
+        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+        loc = {
+          pos: gl.getAttribLocation(prog, 'aPos'),
+          norm: gl.getAttribLocation(prog, 'aNorm'),
+          col: gl.getAttribLocation(prog, 'aCol'),
+          mvp: gl.getUniformLocation(prog, 'uMVP'),
+          cut: gl.getUniformLocation(prog, 'uCut'),
+          glass: gl.getUniformLocation(prog, 'uGlass')
+        };
+        buf = gl.createBuffer();
+        glassBuf = gl.createBuffer();
+        doorBuf = gl.createBuffer();
+      } catch (e) {
+        if (window.console) console.warn('3D недоступно:', e && e.message);
+        return false;
+      }
+      glReady = true;
+      return true;
     }
+    initGL();
+
+    // Контекст могут отобрать во время работы (сброс GPU, сон ноутбука, много вкладок с 3D).
+    // preventDefault разрешает браузеру вернуть его; тогда пересоздаём всё и заново грузим мир.
+    canvas.addEventListener('webglcontextlost', function (e) {
+      e.preventDefault();
+      glReady = false;
+    });
+    canvas.addEventListener('webglcontextrestored', function () {
+      if (initGL() && S.open && S.world) loadWorld(S.world);
+    });
 
     var S = {
       open: false,
@@ -321,7 +346,7 @@
 
     // walkNow — сразу оказаться внутри (с перелётом), без остановки на обзоре
     function open(walkNow) {
-      if (!gl) {
+      if (!glReady && !initGL()) {
         opts.onError(i18n.t('noWebgl'));
         return;
       }
@@ -572,6 +597,7 @@
     }
 
     function draw() {
+      if (!glReady) return; // контекст потерян — ждём webglcontextrestored
       var dpr = window.devicePixelRatio || 1;
       var cw = canvas.clientWidth, ch = canvas.clientHeight;
       if (!cw || !ch) return; // сцена ещё не на экране

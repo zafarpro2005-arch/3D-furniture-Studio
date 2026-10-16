@@ -245,6 +245,8 @@ h2 {
 
 .seg {
   display: inline-flex;
+  flex-wrap: wrap; /* четыре темы на узком экране — в две строки, а не за край */
+  max-width: 100%;
   padding: 3px;
   gap: 2px;
   border: 1px solid var(--border);
@@ -545,9 +547,9 @@ h2.hero-title { display: block; margin: 0 0 8px; font-size: 30px; font-weight: 7
   padding: 18px 24px 28px;
 }
 .estate .card { min-width: 0; }
-.card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.card-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
 .card-head h2 { margin: 0; }
-.floor-nav { display: flex; gap: 6px; }
+.floor-nav { display: flex; flex-wrap: wrap; gap: 6px; }
 .btn.icon { padding: 6px 10px; }
 
 .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 12px; }

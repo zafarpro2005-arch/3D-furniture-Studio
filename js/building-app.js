@@ -265,11 +265,18 @@
       var a = byNumber[state.selected];
       if (sceneMode === 'apt') return Planner.worlds.apartmentWorld(a, { floorHeight: building.floorHeight, roomName: roomName });
       if (sceneMode === 'parking') return parkingWorld(lobbySpawn());
+      if (sceneMode === 'tower') {
+        return Planner.worlds.towerWorld({
+          floors: building.floors, floorHeight: building.floorHeight, floor: state.floor,
+          floorLabel: t('floorN', { n: state.floor }), nameLabel: t('complexName'), hint: 'hintOrbitTower'
+        });
+      }
       return floorWorldFor(a.floor, aptSpawn(a));
     },
     getInfo: function (world) {
       var a = byNumber[state.selected];
       if (sceneMode === 'apt') return t('aptInfo3d', { n: a.number, r: a.rooms, a: a.area, f: a.floor });
+      if (sceneMode === 'tower') return t('towerInfo', { n: building.floors, f: state.floor });
       if (world && world.level === 'P') return t('parkingInfo', { n: parking.spaces.length, free: parking.free });
       return t('floorInfo3d', { f: world ? world.level : a.floor });
     },
@@ -289,6 +296,7 @@
   $('walkBtn').addEventListener('click', function () { sceneMode = 'floor'; scene.open(true); });
   $('overviewBtn').addEventListener('click', function () { sceneMode = 'apt'; scene.open(false); });
   $('parkingBtn').addEventListener('click', function () { sceneMode = 'parking'; scene.open(true); });
+  $('towerBtn').addEventListener('click', function () { sceneMode = 'tower'; scene.open(false); });
 
   var resizeTimer = 0;
   window.addEventListener('resize', function () {

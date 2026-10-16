@@ -224,7 +224,11 @@
     function bounds() { return S.world.bounds; }
 
     // ---------- камера ----------
-    function orbitTarget() { var b = bounds(); return [b.x + b.width / 2, b.height * 0.2, b.z + b.length / 2]; }
+    function orbitTarget() {
+      var b = bounds(), o = S.world.orbit || {};
+      // высокие миры (башня) задают свою высоту точки обзора
+      return [b.x + b.width / 2, o.targetY !== undefined ? o.targetY : b.height * 0.2, b.z + b.length / 2];
+    }
     function orbitDist() {
       var b = bounds();
       return S.orbit.dist || (Math.max(b.width, b.length) * 1.2 + b.height);
@@ -296,7 +300,7 @@
 
     // ---------- вход и выход ----------
     function enterRoom() {
-      if (S.mode !== 'orbit') return;
+      if (S.mode !== 'orbit' || S.world.noWalk) return; // в башню снаружи не входят
       var p = spawnPoint(), b = bounds();
       if (!p) { infoEl.textContent = i18n.t('noSpaceWalk'); infoEl.classList.add('bad'); return; }
       infoEl.classList.remove('bad');
@@ -667,11 +671,11 @@
 
     function updateUi() {
       var walk = S.mode === 'walk';
-      enterBtn.hidden = S.mode !== 'orbit';
+      enterBtn.hidden = S.mode !== 'orbit' || !!S.world.noWalk;
       overviewBtn.hidden = !walk;
       crosshair.hidden = !walk;
       pad.hidden = !walk;
-      hintEl.textContent = i18n.t(walk ? (S.world.lifts.length ? 'hintWalkLift' : (S.world.doors.length ? 'hintWalkDoors' : 'hintWalk')) : (opts.orbitHint || 'hintOrbit'));
+      hintEl.textContent = i18n.t(walk ? (S.world.lifts.length ? 'hintWalkLift' : (S.world.doors.length ? 'hintWalkDoors' : 'hintWalk')) : (S.world.hint || opts.orbitHint || 'hintOrbit'));
       if (S.mode === 'orbit') infoEl.textContent = opts.getInfo ? opts.getInfo(S.world) : '';
       showLevel();
     }
@@ -724,7 +728,8 @@
       e.preventDefault();
       var d = orbitDist() * (e.deltaY > 0 ? 1.1 : 1 / 1.1);
       var span = Math.max(bounds().width, bounds().length);
-      S.orbit.dist = Math.max(span * 0.4, Math.min(span * 4 + 1000, d));
+      var far = Math.max(span, bounds().height); // высокое здание — отъезжаем дальше
+      S.orbit.dist = Math.max(span * 0.4, Math.min(far * 4 + 1000, d));
     }, { passive: false });
 
     var MOVE_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight'];

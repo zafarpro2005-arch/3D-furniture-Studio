@@ -352,7 +352,8 @@
   }
 
   // ---------- город за окнами ----------
-  function addCity(m, cx, cz, groundY, seed) {
+  // keep — полуразмер свободного квадрата вокруг (cx, cz), где не сажаем деревья (под башню и площадь)
+  function addCity(m, cx, cz, groundY, seed, keep) {
     var s = seed;
     function rnd() { s = (s * 16807) % 2147483647; return s / 2147483647; }
     var R = 30000;
@@ -376,6 +377,7 @@
     for (var j = 0; j < 50; j++) {
       var tx = cx + (rnd() - 0.5) * 12000, tz = cz + (rnd() < 0.5 ? -1 : 1) * (1700 + rnd() * 3000);
       if (Math.abs(tz - cz - 3600) < 500) continue;
+      if (keep && Math.abs(tx - cx) < keep && Math.abs(tz - cz) < keep) continue;
       m.box(tx - 25, groundY, tz - 25, tx + 25, groundY + 300, tz + 25, [0.4, 0.3, 0.2]);
       m.box(tx - 180, groundY + 250, tz - 180, tx + 180, groundY + 650, tz + 180, [0.3, 0.5 + rnd() * 0.12, 0.28]);
     }
@@ -662,7 +664,97 @@
     };
   }
 
+  // ---------- здание снаружи: квадратная башня в духе Всемирного торгового центра ----------
+  // В плане квадрат; по фасаду частые узкие пилоны, между ними — узкие окна; внизу высокое лобби,
+  // наверху парапет, техническая надстройка и шпиль. Выбранный этаж светится.
+  // opts: { floors, floorHeight, floor — выбранный этаж, floorLabel, nameLabel, hint }
+  function towerWorld(opts) {
+    var m = new Mesh();
+    var SIDE = 4000;          // сторона квадрата, см
+    var PITCH = 100;          // шаг пилонов
+    var COL_W = 46, COL_D = 28;
+    var LOBBY = 600;          // высота лобби под жилыми этажами
+    var FH = opts.floorHeight, N = opts.floors;
+    var top = LOBBY + N * FH;
+    var x0 = 0, z0 = 0, x1 = SIDE, z1 = SIDE, cx = SIDE / 2, cz = SIDE / 2;
+    var METAL = [0.8, 0.82, 0.85], GLASS = [0.2, 0.25, 0.31], BAND = [0.6, 0.62, 0.65], STONE = [0.83, 0.82, 0.79];
+    var LIT = [1, 0.74, 0.34];
+
+    addCity(m, cx, cz, -2, 7919, SIDE);
+    m.box(cx - 3400, -2, cz - 3400, cx + 3400, 0, cz + 3400, STONE); // площадь
+
+    // объём здания за пилонами — тёмное остекление
+    m.box(x0, LOBBY, z0, x1, top, z1, GLASS);
+
+    // пилоны и поэтажные пояса по четырём сторонам; side: ось вдоль фасада и наружное направление
+    var sides = [
+      { along: 'x', at: z0, out: -1 }, { along: 'x', at: z1, out: 1 },
+      { along: 'z', at: x0, out: -1 }, { along: 'z', at: x1, out: 1 }
+    ];
+    function sideBox(sd, a0, a1, y0, y1, d0, d1, col, mat) {
+      // a — координата вдоль фасада, d — вынос наружу от плоскости фасада
+      var p0 = sd.at + sd.out * d0, p1 = sd.at + sd.out * d1;
+      var lo = Math.min(p0, p1), hi = Math.max(p0, p1);
+      if (sd.along === 'x') m.box(a0, y0, lo, a1, y1, hi, col, mat);
+      else m.box(lo, y0, a0, hi, y1, a1, col, mat);
+    }
+    sides.forEach(function (sd) {
+      for (var a = PITCH / 2; a < SIDE; a += PITCH) {
+        // в лобби пилоны сливаются по три в мощную опору (как «трезубцы» ВТЦ)
+        var lobbyPier = Math.round((a - PITCH / 2) / PITCH) % 3 === 1;
+        if (lobbyPier) sideBox(sd, a - PITCH * 0.75, a + PITCH * 0.75, 0, LOBBY, 0, COL_D + 12, METAL);
+        sideBox(sd, a - COL_W / 2, a + COL_W / 2, lobbyPier ? LOBBY : LOBBY - 60, top, 0, COL_D, METAL);
+      }
+      // лобби: высокое стекло в глубине
+      sideBox(sd, 0, SIDE, 0, LOBBY, -40, -38, [0.3, 0.38, 0.44]);
+      // поэтажные пояса (перекрытия)
+      for (var f = 0; f <= N; f++) {
+        var y = LOBBY + f * FH;
+        sideBox(sd, 0, SIDE, y - 14, y + 14, 0, 12, BAND);
+      }
+      // выбранный этаж: светящийся пояс за пилонами
+      if (opts.floor >= 1 && opts.floor <= N) {
+        var fy = LOBBY + (opts.floor - 1) * FH;
+        sideBox(sd, 0, SIDE, fy + 20, fy + FH - 20, 0, 4, LIT, MAT.glow);
+      }
+    });
+    // перекрытие над лобби и козырёк входа
+    m.box(x0 - 10, LOBBY - 60, z0 - 10, x1 + 10, LOBBY, z1 + 10, BAND);
+    m.box(cx - 700, 380, z1, cx + 700, 410, z1 + 450, METAL);
+    // пол лобби внутри стекла
+    m.box(x0 + 40, 0, z0 + 40, x1 - 40, 6, z1 - 40, [0.9, 0.89, 0.86]);
+
+    // крыша: парапет, техническая надстройка, шпиль с кольцами и огнём
+    m.box(x0, top, z0, x1, top + 120, z1, METAL);
+    m.box(cx - 1000, top + 120, cz - 1000, cx + 1000, top + 520, cz + 1000, [0.55, 0.57, 0.6]);
+    m.box(cx - 120, top + 520, cz - 120, cx + 120, top + 900, cz + 120, [0.7, 0.72, 0.75]);
+    var SPIRE = 3200;
+    m.box(cx - 30, top + 900, cz - 30, cx + 30, top + 900 + SPIRE, cz + 30, [0.86, 0.87, 0.9]);
+    for (var r = 1; r <= 3; r++) {
+      var ry = top + 900 + SPIRE * r / 4;
+      m.box(cx - 70, ry, cz - 70, cx + 70, ry + 25, cz + 70, [0.86, 0.87, 0.9]);
+    }
+    m.box(cx - 40, top + 900 + SPIRE, cz - 40, cx + 40, top + 980 + SPIRE, cz + 40, [1, 0.25, 0.2], MAT.glow);
+
+    var labels = [];
+    if (opts.floor >= 1 && opts.floor <= N) {
+      labels.push({ text: opts.floorLabel, p: [x1 + COL_D, LOBBY + (opts.floor - 0.5) * FH, z1 + COL_D] });
+    }
+    labels.push({ text: opts.nameLabel, p: [cx, top + 900 + SPIRE + 200, cz] });
+
+    var H = top + 1000 + SPIRE;
+    return {
+      mesh: m.data(), glass: null, doors: [], lifts: [],
+      bounds: { x: x0, z: z0, width: SIDE, length: SIDE, height: H },
+      blockers: [], labels: labels,
+      spawn: null, cut: null, background: 'sky',
+      orbit: { yaw: 0.65, pitch: 0.22, targetY: top * 0.5 },
+      noWalk: true, hint: opts.hint
+    };
+  }
+
   root.Planner.worlds = {
+    towerWorld: towerWorld,
     roomWorld: roomWorld, apartmentWorld: apartmentWorld, floorWorld: floorWorld, parkingWorld: parkingWorld,
     doorMesh: doorMesh, doorBlockers: doorBlockers, Mesh: Mesh, MAT: MAT, mergeWalls: mergeWalls
   };

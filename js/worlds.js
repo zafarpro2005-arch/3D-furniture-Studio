@@ -414,7 +414,7 @@
         var area = rm.type === 'hall'
           ? apt.list.filter(function (q) { return q.type === 'hall'; }).reduce(function (s, q) { return s + q.area; }, 0)
           : rm.area;
-        labels.push({ text: opts.roomName(rm) + ' · ' + (Math.round(area * 10) / 10) + ' м²', p: [rm.x + rm.w / 2, 140, rm.y + rm.d / 2] });
+        labels.push({ text: opts.roomName(rm) + ' · ' + (Math.round(area * 10) / 10) + ' ' + root.Planner.i18n.t('m2'), p: [rm.x + rm.w / 2, 140, rm.y + rm.d / 2] });
       });
     }
   }

@@ -121,7 +121,7 @@
       if (rm.part === 'vest') return;
       var p = map(rm.x + rm.w / 2, rm.y + rm.d / 2);
       var area = rm.type === 'hall' ? Math.round(hallArea * 10) / 10 : rm.area;
-      var name = roomName(rm), sub = area + ' м²';
+      var name = roomName(rm), sub = area + ' ' + root.Planner.i18n.t('m2');
       if (rm.w * scale < 46 || rm.d * scale < 30) return;
       ctx.font = '600 12px system-ui, sans-serif';
       var tw = Math.max(ctx.measureText(name).width, ctx.measureText(sub).width) + 12;

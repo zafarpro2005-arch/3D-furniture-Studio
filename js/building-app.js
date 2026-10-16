@@ -35,7 +35,7 @@
       [building.floors, t('statFloors')],
       [building.apartments.length, t('statApts')],
       [free.length, t('statFree')],
-      [Math.round(Math.min.apply(null, areas)) + '–' + Math.round(Math.max.apply(null, areas)) + ' м²', t('statAreas')],
+      [Math.round(Math.min.apply(null, areas)) + '–' + Math.round(Math.max.apply(null, areas)) + ' ' + t('m2'), t('statAreas')],
       [money(minPrice), t('statFrom')]
     ];
     $('stats').innerHTML = '';
@@ -72,7 +72,7 @@
         c.innerHTML = '<b></b><small></small>';
         c.firstChild.textContent = a.rooms + t('roomsShort');
         c.lastChild.textContent = Math.round(a.area);
-        c.title = t('aptTitle', { n: a.number }) + ' · ' + a.area + ' м² · ' + t('st_' + a.status);
+        c.title = t('aptTitle', { n: a.number }) + ' · ' + a.area + ' ' + t('m2') + ' · ' + t('st_' + a.status);
         c.onclick = (function (n) { return function () { selectApt(n); }; })(a.number);
         row.appendChild(c);
       });
@@ -94,7 +94,7 @@
       selected: state.selected,
       hover: state.hover,
       dim: function (a) { return !matches(a); },
-      label: function (a) { return '№' + a.number + ' · ' + a.rooms + t('roomsShort') + ' · ' + Math.round(a.area) + ' м²'; },
+      label: function (a) { return '№' + a.number + ' · ' + a.rooms + t('roomsShort') + ' · ' + Math.round(a.area) + ' ' + t('m2'); },
       northText: t('northSide'),
       southText: t('southSide'),
       lobbyText: t('lobby')
@@ -140,10 +140,10 @@
     });
 
     var facts = [
-      [t('totalArea'), a.area + ' м²'],
-      [t('livingArea'), a.livingArea + ' м²'],
-      [t('kitchenArea'), a.kitchenArea + ' м²'],
-      [t('ceiling'), (a.H / 100).toFixed(1).replace('.', ',') + ' м'],
+      [t('totalArea'), a.area + ' ' + t('m2')],
+      [t('livingArea'), a.livingArea + ' ' + t('m2')],
+      [t('kitchenArea'), a.kitchenArea + ' ' + t('m2')],
+      [t('ceiling'), (a.H / 100).toFixed(1).replace('.', ',') + ' ' + t('m')],
       [t('windows'), a.position === 'corner' ? t('windowsTwo') : t('windowsOne')],
       [t('pricePerM2'), money(a.pricePerM2)],
       [t('price'), money(a.price)]
@@ -168,7 +168,7 @@
       var li = document.createElement('li');
       var n = document.createElement('span'); n.textContent = r[0] + (r[2] ? ' ◢' : '');
       if (r[2]) n.title = t('windowsTwo');
-      var v = document.createElement('b'); v.textContent = r[1] + ' м²';
+      var v = document.createElement('b'); v.textContent = r[1] + ' ' + t('m2');
       li.appendChild(n); li.appendChild(v);
       $('aptRooms').appendChild(li);
     });

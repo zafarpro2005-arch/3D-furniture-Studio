@@ -1,9 +1,9 @@
-// Общее для всех страниц: переключатели темы (тёмная / светлая / защита глаз) и языка (RU / UZ).
+// Общее для всех страниц: переключатели темы (тёмная / светлая / защита глаз / минимализм) и языка (RU / UZ).
 (function (root) {
   'use strict';
 
   var i18n = root.Planner.i18n;
-  var THEMES = ['dark', 'light', 'eye'];
+  var THEMES = ['dark', 'light', 'eye', 'minimal'];
 
   // opts: { onLang(), onTheme() } — что перерисовать на странице после смены
   function init(opts) {

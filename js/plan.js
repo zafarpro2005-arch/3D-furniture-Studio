@@ -9,9 +9,13 @@
   var WALL_CM = 12;      // толщина стены на плане, см
   var DRAG_SLACK = 100;  // насколько см можно вытащить предмет за стену (чтобы ошибку было видно)
 
+  // Тема просит мебель в оттенках серого (--plan-mono: 1, «Минимализм»); запоминаем при каждой перерисовке
+  var mono = false;
+
   function themeColors() {
     var cs = getComputedStyle(document.documentElement);
     function v(name) { return cs.getPropertyValue(name).trim(); }
+    mono = v('--plan-mono') === '1';
     return {
       bg: v('--plan-bg'), floor: v('--plan-floor'), floorLine: v('--plan-floor-line'),
       grid: v('--plan-grid'), wall: v('--plan-wall'), dim: v('--plan-dim'),
@@ -22,6 +26,7 @@
   }
 
   function rgb(c, k) {
+    if (mono) { var g = 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2]; c = [g, g, g]; }
     return 'rgb(' + Math.round(Math.min(1, c[0] * k) * 255) + ',' + Math.round(Math.min(1, c[1] * k) * 255) + ',' + Math.round(Math.min(1, c[2] * k) * 255) + ')';
   }
 

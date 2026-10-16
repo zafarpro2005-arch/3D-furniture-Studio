@@ -132,6 +132,51 @@
   --st-sold: #9a8e78;
 }
 
+/* minimal — «Минимализм»: белое и чёрное, тонкие линии вместо карточек, без теней и скруглений;
+   цвет остаётся только у ошибок и статусов квартир. Структурные правила — в конце файла. */
+[data-theme="minimal"] {
+  color-scheme: light;
+  --bg: #ffffff;
+  --bg-glow: #ffffff;
+  --panel: #ffffff;
+  --panel-2: #ffffff;
+  --ink: #111111;
+  --muted: #8a8a8a;
+  --border: #e6e6e6;
+  --accent: #111111;
+  --accent-ink: #ffffff;
+  --accent-soft: transparent;
+  --good-bg: transparent;
+  --good-ink: #111111;
+  --bad: #d0021b;
+  --bad-bg: transparent;
+  --bad-ink: #d0021b;
+  --shadow: none;
+  --plan-bg: #ffffff;
+  --plan-floor: #f5f5f5;
+  --plan-floor-line: transparent;
+  --plan-grid: rgba(0, 0, 0, .06);
+  --plan-wall: #111111;
+  --plan-dim: #8a8a8a;
+  --plan-sel: #111111;
+  --plan-label-bg: rgba(255, 255, 255, .94);
+  --plan-label-ink: #111111;
+  --plan-shade: 1.05;
+  --plan-mono: 1;
+  --scene-bg: #f2f2f2;
+  --scene-filter: none;
+  --apt-wood: #f2f2f2;
+  --apt-tile: #ebebeb;
+  --apt-kitchen: #efefef;
+  --apt-hall: #f7f7f7;
+  --apt-wall: #111111;
+  --apt-glass: #9a9a9a;
+  --apt-corridor: #fafafa;
+  --st-free: #1a7f37;
+  --st-reserved: #b7791f;
+  --st-sold: #c4c4c4;
+}
+
 /* ---------- основа ---------- */
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -668,3 +713,46 @@ h2.hero-title { display: block; margin: 0 0 8px; font-size: 30px; font-weight: 7
 .scene-pad .use { grid-column: 3; grid-row: 1; font-weight: 700; }
 .apt-actions .btn.wide { grid-column: 1 / -1; }
 .apt-actions .message { grid-column: 1 / -1; margin: 0; }
+
+/* ---------- тема «Минимализм»: структура ----------
+   Только интерфейс страницы; 3D-сцена (.scene) остаётся как есть. */
+[data-theme="minimal"] body { background: var(--bg); font-weight: 400; letter-spacing: .005em; }
+[data-theme="minimal"] :is(.topbar, .layout, .hero, .estate) * { border-radius: 0 !important; box-shadow: none !important; }
+[data-theme="minimal"] .dot { border-radius: 50% !important; }
+[data-theme="minimal"] .topbar { background: var(--bg); backdrop-filter: none; }
+[data-theme="minimal"] .logo { color: var(--ink); }
+[data-theme="minimal"] h1 { font-weight: 500; }
+[data-theme="minimal"] h2 { font-weight: 500; letter-spacing: .12em; }
+[data-theme="minimal"] h2.hero-title { font-weight: 300; letter-spacing: -.01em; }
+[data-theme="minimal"] .step { background: none; border: 1px solid var(--ink); color: var(--ink); font-weight: 500; }
+
+/* карточки → секции с тонкой линией сверху */
+[data-theme="minimal"] .card { background: none; border: 0; border-top: 1px solid var(--ink); padding: 18px 0 0; }
+[data-theme="minimal"] .stat { border: 0; border-left: 1px solid var(--border); padding: 4px 14px; }
+[data-theme="minimal"] .stat b { font-weight: 300; font-size: 22px; }
+
+/* переключатели: текст и подчёркивание вместо «таблеток» */
+[data-theme="minimal"] .seg { border: 0; background: none; padding: 0; gap: 4px; }
+[data-theme="minimal"] .seg button,
+[data-theme="minimal"] .nav a { background: none; border-bottom: 1px solid transparent; padding: 6px 4px; }
+[data-theme="minimal"] .seg button.active,
+[data-theme="minimal"] .nav a.active { background: none; color: var(--ink); border-bottom-color: var(--ink); }
+
+/* кнопки и поля: тонкая чёрная рамка, без заливки */
+[data-theme="minimal"] .btn { background: none; border-color: var(--ink); color: var(--ink); }
+[data-theme="minimal"] .btn:hover { background: var(--ink); color: var(--accent-ink); }
+[data-theme="minimal"] .btn.primary { background: var(--ink); color: var(--accent-ink); }
+[data-theme="minimal"] .btn.primary:hover { filter: none; background: #333; }
+[data-theme="minimal"] .btn.danger { color: var(--bad); border-color: var(--bad); }
+[data-theme="minimal"] .btn.danger:hover { background: var(--bad); color: #fff; }
+[data-theme="minimal"] .btn:disabled:hover { background: none; color: var(--ink); border-color: var(--ink); }
+[data-theme="minimal"] .btn:active { transform: none; }
+[data-theme="minimal"] :is(input, select) { background: none; border: 0; border-bottom: 1px solid var(--border); }
+[data-theme="minimal"] :is(input, select):focus { border-color: var(--ink); box-shadow: none; }
+
+/* сообщения, список, шахматка, бейджи */
+[data-theme="minimal"] .message { border-left-width: 2px; padding: 8px 12px; }
+[data-theme="minimal"] .count { background: none; padding: 0; }
+[data-theme="minimal"] .chip:hover { transform: none; }
+[data-theme="minimal"] .badge { background: none; }
+[data-theme="minimal"] .badge.accent { background: none; color: var(--ink); border-color: var(--ink); }

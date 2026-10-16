@@ -1,0 +1,129 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>ЖК «Панорама»</title>
+<link rel="stylesheet" href="style.css">
+<script>
+  try { document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark'); } catch (e) { document.documentElement.setAttribute('data-theme', 'dark'); }
+  document.body.className = 'building-page';
+  document.body.setAttribute('data-title', 'buildingTitle');
+</script>
+
+  <header class="topbar">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="3" y="3" width="26" height="26" rx="6" fill="none" stroke="currentColor" stroke-width="2.2"/>
+        <rect x="7" y="16" width="11" height="9" rx="1.5" fill="currentColor"/>
+        <rect x="20" y="7" width="5" height="18" rx="1.5" fill="currentColor" opacity=".55"/>
+      </svg>
+      <div>
+        <h1 data-i18n="buildingTitle">Новостройка: выбор квартиры</h1>
+        <p class="subtitle" data-i18n="buildingSubtitle"></p>
+      </div>
+    </div>
+    <nav class="seg nav" aria-label="Разделы">
+      <a href="planner.html" data-i18n="navPlanner">Планировщик</a>
+      <a href="#" class="active" data-i18n="navBuilding">Новостройка</a>
+    </nav>
+    <div class="switches">
+      <div class="seg" role="group" aria-label="Тема">
+        <button type="button" data-theme-btn="dark"><span aria-hidden="true">☾</span> <span data-i18n="themeDark">Тёмная</span></button>
+        <button type="button" data-theme-btn="light"><span aria-hidden="true">☀</span> <span data-i18n="themeLight">Светлая</span></button>
+        <button type="button" data-theme-btn="eye"><span aria-hidden="true">◐</span> <span data-i18n="themeEye">Защита глаз</span></button>
+      </div>
+      <div class="seg" role="group" aria-label="Язык / Til">
+        <button type="button" data-lang="ru">RU</button>
+        <button type="button" data-lang="uz">UZ</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div>
+      <p class="eyebrow" data-i18n="complexClass">Элитный жилой комплекс · тестовый проект</p>
+      <h2 class="hero-title" data-i18n="complexName">ЖК «Панорама»</h2>
+      <p class="hero-text" data-i18n="complexTagline"></p>
+    </div>
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <main class="estate">
+    <section class="card chess-card">
+      <h2><span class="step">1</span><span data-i18n="chess">Выберите квартиру</span></h2>
+      <div class="filters">
+        <div class="seg" role="group" id="roomFilter">
+          <button type="button" data-rooms="0" class="active" data-i18n="allRooms">Все</button>
+          <button type="button" data-rooms="1">1к</button>
+          <button type="button" data-rooms="2">2к</button>
+          <button type="button" data-rooms="3">3к</button>
+        </div>
+        <label class="check"><input type="checkbox" id="onlyFree"> <span data-i18n="onlyFree">Только свободные</span></label>
+      </div>
+      <div id="chess" class="chess" role="grid"></div>
+      <div class="legend">
+        <span><i class="dot free"></i><span data-i18n="st_free">Свободна</span></span>
+        <span><i class="dot reserved"></i><span data-i18n="st_reserved">Бронь</span></span>
+        <span><i class="dot sold"></i><span data-i18n="st_sold">Продана</span></span>
+      </div>
+    </section>
+
+    <section class="card floor-card">
+      <div class="card-head">
+        <h2><span class="step">2</span><span id="floorTitle"></span></h2>
+        <div class="floor-nav">
+          <button type="button" class="btn" id="parkingBtn"><span aria-hidden="true">P</span> <span data-i18n="parkingBtn">Паркинг</span></button>
+          <button type="button" class="btn icon" id="floorDown" aria-label="−">▼</button>
+          <button type="button" class="btn icon" id="floorUp" aria-label="+">▲</button>
+        </div>
+      </div>
+      <div class="canvas-wrap"><canvas id="floorPlan"></canvas></div>
+      <p class="hint" data-i18n="floorHint"></p>
+    </section>
+
+    <section class="card apt-card" id="aptCard">
+      <h2><span class="step">3</span><span id="aptTitle"></span></h2>
+      <div class="badges" id="aptBadges"></div>
+      <div class="canvas-wrap"><canvas id="aptPlan"></canvas></div>
+      <div class="apt-actions">
+        <button type="button" class="btn primary" id="walkBtn"><span aria-hidden="true">◈</span> <span data-i18n="walkInside">Прогуляться внутри</span></button>
+        <button type="button" class="btn" id="overviewBtn"><span data-i18n="view3d">3D-обзор</span></button>
+        <button type="button" class="btn wide" id="shuffleBtn"><span aria-hidden="true">⟲</span> <span data-i18n="shuffle">Переставить мебель</span></button>
+      </div>
+      <dl class="facts" id="aptFacts"></dl>
+      <h3 data-i18n="roomsTitle">Помещения</h3>
+      <ul class="rooms" id="aptRooms"></ul>
+    </section>
+  </main>
+
+  <div id="scene" class="scene" hidden>
+    <canvas></canvas>
+    <div class="scene-labels"></div>
+    <div class="scene-cross" hidden></div>
+    <div class="scene-bar">
+      <div class="scene-info"></div>
+      <div class="scene-actions">
+        <button type="button" class="btn primary" data-act="enter" data-i18n="enterApt">Войти в квартиру</button>
+        <button type="button" class="btn" data-act="overview" data-i18n="overview" hidden>Вид сверху</button>
+        <button type="button" class="btn" data-act="close" data-i18n="close3d">Закрыть 3D</button>
+      </div>
+    </div>
+    <div class="scene-hint"></div>
+    <div class="scene-pad" hidden>
+      <button type="button" data-key="KeyW" class="up" aria-label="W">▲</button>
+      <button type="button" data-key="KeyA" class="left" aria-label="A">◀</button>
+      <button type="button" data-key="KeyS" class="down" aria-label="S">▼</button>
+      <button type="button" data-key="KeyD" class="right" aria-label="D">▶</button>
+      <button type="button" data-key="KeyE" class="use" aria-label="E">E</button>
+    </div>
+  </div>
+
+  <script src="js/i18n.js"></script>
+  <script src="js/geometry.js"></script>
+  <script src="js/models.js"></script>
+  <script src="js/plan.js"></script>
+  <script src="js/apartments.js"></script>
+  <script src="js/aptplan.js"></script>
+  <script src="js/worlds.js"></script>
+  <script src="js/scene3d.js"></script>
+  <script src="js/shell.js"></script>
+  <script src="js/building-app.js"></script>
+
+</body></html>

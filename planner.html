@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Мебель на заказ: планировщик комнаты</title>
+  <script>
+    // тема до отрисовки страницы, чтобы не было вспышки светлого фона
+    try { document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark'); } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="3" y="3" width="26" height="26" rx="6" fill="none" stroke="currentColor" stroke-width="2.2"/>
+        <rect x="7" y="16" width="11" height="9" rx="1.5" fill="currentColor"/>
+        <rect x="20" y="7" width="5" height="18" rx="1.5" fill="currentColor" opacity=".55"/>
+      </svg>
+      <div>
+        <h1 data-i18n="title">Мебель на заказ: планировщик комнаты</h1>
+        <p class="subtitle" data-i18n="subtitle"></p>
+      </div>
+    </div>
+    <nav class="seg nav" aria-label="Разделы">
+      <a href="planner.html" class="active" data-i18n="navPlanner">Планировщик</a>
+      <a href="./" data-i18n="navBuilding">Новостройка</a>
+    </nav>
+    <div class="switches">
+      <div class="seg" role="group" aria-label="Тема">
+        <button type="button" data-theme-btn="dark"><span aria-hidden="true">☾</span> <span data-i18n="themeDark">Тёмная</span></button>
+        <button type="button" data-theme-btn="light"><span aria-hidden="true">☀</span> <span data-i18n="themeLight">Светлая</span></button>
+        <button type="button" data-theme-btn="eye"><span aria-hidden="true">◐</span> <span data-i18n="themeEye">Защита глаз</span></button>
+      </div>
+      <div class="seg" role="group" aria-label="Язык / Til">
+        <button type="button" data-lang="ru">RU</button>
+        <button type="button" data-lang="uz">UZ</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="side">
+      <section class="card">
+        <h2><span class="step">1</span><span data-i18n="room">Комната</span></h2>
+        <div class="fields">
+          <label class="field"><span data-i18n="width">Ширина</span><span class="unit-input"><input id="roomW" type="number" min="100" max="2000" step="1" value="400"><i data-i18n="cm">см</i></span></label>
+          <label class="field"><span data-i18n="length">Длина</span><span class="unit-input"><input id="roomL" type="number" min="100" max="2000" step="1" value="300"><i data-i18n="cm">см</i></span></label>
+          <label class="field"><span data-i18n="height">Высота</span><span class="unit-input"><input id="roomH" type="number" min="100" max="400" step="1" value="270"><i data-i18n="cm">см</i></span></label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2><span class="step">2</span><span data-i18n="furniture">Мебель</span></h2>
+        <label class="field wide"><span data-i18n="type">Предмет</span><select id="fType"></select></label>
+        <div class="fields">
+          <label class="field"><span data-i18n="width">Ширина</span><span class="unit-input"><input id="fW" type="number" min="10" max="1000" step="1"><i data-i18n="cm">см</i></span></label>
+          <label class="field"><span data-i18n="depth">Глубина</span><span class="unit-input"><input id="fD" type="number" min="10" max="1000" step="1"><i data-i18n="cm">см</i></span></label>
+          <label class="field"><span data-i18n="height">Высота</span><span class="unit-input"><input id="fH" type="number" min="10" max="400" step="1"><i data-i18n="cm">см</i></span></label>
+        </div>
+        <button id="addBtn" type="button" class="btn primary block">＋ <span data-i18n="add">Добавить</span></button>
+      </section>
+
+      <section class="card">
+        <h2><span class="step">3</span><span data-i18n="placed">На плане</span><span id="count" class="count">0</span></h2>
+        <ul id="list"></ul>
+      </section>
+    </aside>
+
+    <section class="board card">
+      <div class="toolbar">
+        <div class="tools">
+          <button id="rotateBtn" type="button" class="btn"><span aria-hidden="true">⟳</span> <span data-i18n="rotate">Повернуть 90°</span></button>
+          <button id="findBtn" type="button" class="btn"><span aria-hidden="true">⌖</span> <span data-i18n="find">Найти место</span></button>
+          <button id="removeBtn" type="button" class="btn danger"><span aria-hidden="true">✕</span> <span data-i18n="remove">Удалить</span></button>
+        </div>
+        <button id="open3dBtn" type="button" class="btn primary"><span aria-hidden="true">◈</span> <span data-i18n="open3d">3D-вид</span></button>
+      </div>
+      <div id="message" class="message" role="status" aria-live="polite"></div>
+      <div class="canvas-wrap"><canvas id="plan"></canvas></div>
+      <p class="hint">
+        <span data-i18n="hintDrag">Перетаскивайте мебель мышью.</span>
+        <span><kbd>R</kbd> <span data-i18n="hintRotate">повернуть</span></span>
+        <span><kbd>Delete</kbd> <span data-i18n="hintDelete">удалить</span></span>
+      </p>
+    </section>
+  </main>
+
+  <div id="scene" class="scene" hidden>
+    <canvas></canvas>
+    <div class="scene-labels"></div>
+    <div class="scene-cross" hidden></div>
+    <div class="scene-bar">
+      <div class="scene-info"></div>
+      <div class="scene-actions">
+        <button type="button" class="btn primary" data-act="enter" data-i18n="enterRoom">Войти в комнату</button>
+        <button type="button" class="btn" data-act="overview" data-i18n="overview" hidden>Вид сверху</button>
+        <button type="button" class="btn" data-act="close" data-i18n="close3d">Закрыть 3D</button>
+      </div>
+    </div>
+    <div class="scene-hint"></div>
+    <div class="scene-pad" hidden>
+      <button type="button" data-key="KeyW" class="up" aria-label="W">▲</button>
+      <button type="button" data-key="KeyA" class="left" aria-label="A">◀</button>
+      <button type="button" data-key="KeyS" class="down" aria-label="S">▼</button>
+      <button type="button" data-key="KeyD" class="right" aria-label="D">▶</button>
+    </div>
+  </div>
+
+  <script src="js/i18n.js"></script>
+  <script src="js/geometry.js"></script>
+  <script src="js/models.js"></script>
+  <script src="js/plan.js"></script>
+  <script src="js/worlds.js"></script>
+  <script src="js/scene3d.js"></script>
+  <script src="js/shell.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

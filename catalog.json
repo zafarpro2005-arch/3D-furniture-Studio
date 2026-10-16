@@ -1,0 +1,18 @@
+[
+  { "id": "custom",       "name": { "ru": "Свои размеры",           "uz": "O'z o'lchamlari" },        "w": 100, "d": 60,  "h": 80 },
+  { "id": "bed-single",   "name": { "ru": "Кровать односпальная",   "uz": "Bir kishilik karavot" },   "w": 90,  "d": 200, "h": 90 },
+  { "id": "bed-double",   "name": { "ru": "Кровать двуспальная",    "uz": "Ikki kishilik karavot" },  "w": 160, "d": 200, "h": 100 },
+  { "id": "sofa-2",       "name": { "ru": "Диван двухместный",      "uz": "Ikki o'rinli divan" },     "w": 160, "d": 90,  "h": 85 },
+  { "id": "sofa-3",       "name": { "ru": "Диван трёхместный",      "uz": "Uch o'rinli divan" },      "w": 210, "d": 90,  "h": 85 },
+  { "id": "armchair",     "name": { "ru": "Кресло",                 "uz": "Kreslo" },                 "w": 85,  "d": 85,  "h": 85 },
+  { "id": "wardrobe",     "name": { "ru": "Шкаф распашной",         "uz": "Ochiladigan shkaf" },      "w": 120, "d": 60,  "h": 200 },
+  { "id": "wardrobe-sl",  "name": { "ru": "Шкаф-купе",              "uz": "Kupe shkaf" },             "w": 180, "d": 60,  "h": 220 },
+  { "id": "chest",        "name": { "ru": "Комод",                  "uz": "Komod" },                  "w": 100, "d": 50,  "h": 90 },
+  { "id": "nightstand",   "name": { "ru": "Тумбочка",               "uz": "Tumbochka" },              "w": 45,  "d": 40,  "h": 55 },
+  { "id": "tv-stand",     "name": { "ru": "Тумба под ТВ",           "uz": "TV tumbasi" },             "w": 140, "d": 40,  "h": 50 },
+  { "id": "table-dining", "name": { "ru": "Стол обеденный",         "uz": "Ovqatlanish stoli" },      "w": 140, "d": 80,  "h": 75 },
+  { "id": "desk",         "name": { "ru": "Стол письменный",        "uz": "Yozuv stoli" },            "w": 120, "d": 60,  "h": 75 },
+  { "id": "coffee-table", "name": { "ru": "Столик журнальный",      "uz": "Jurnal stolchasi" },       "w": 100, "d": 55,  "h": 45 },
+  { "id": "chair",        "name": { "ru": "Стул",                   "uz": "Stul" },                   "w": 45,  "d": 50,  "h": 90 },
+  { "id": "shelf",        "name": { "ru": "Стеллаж",                "uz": "Javon" },                  "w": 90,  "d": 30,  "h": 190 }
+]

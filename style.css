@@ -554,7 +554,7 @@ h2.hero-title { display: block; margin: 0 0 8px; font-size: 30px; font-weight: 7
 .check { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; cursor: pointer; }
 .check input { width: 16px; height: 16px; accent-color: var(--accent); }
 
-.chess { display: flex; flex-direction: column; gap: 4px; }
+.chess { display: flex; flex-direction: column; gap: 4px; position: relative; max-height: 560px; overflow-y: auto; padding-right: 4px; overscroll-behavior: contain; }
 .chess-row { display: grid; grid-template-columns: 30px repeat(3, minmax(0, 1fr)) 4px repeat(3, minmax(0, 1fr)); gap: 4px; }
 .chess-row .chip:nth-child(5) { grid-column: 6; }
 .chess-floor {
@@ -686,7 +686,9 @@ h2.hero-title { display: block; margin: 0 0 8px; font-size: 30px; font-weight: 7
   right: 18px;
   top: 50%;
   transform: translateY(-50%);
-  width: 196px;
+  width: 236px;
+  max-height: calc(100% - 150px);
+  overflow-y: auto;
   padding: 12px;
   border-radius: 14px;
   background: rgba(30, 32, 36, .92);
@@ -695,14 +697,15 @@ h2.hero-title { display: block; margin: 0 0 8px; font-size: 30px; font-weight: 7
   box-shadow: 0 10px 30px rgba(0, 0, 0, .4);
 }
 .lift-title { font-weight: 700; margin-bottom: 8px; }
-.lift-buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.lift-buttons { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
 .lift-buttons button {
   aspect-ratio: 1;
   border: 1px solid rgba(255, 255, 255, .2);
   border-radius: 50%;
   background: #3a3f47;
   color: #fff;
-  font: 700 14px system-ui, sans-serif;
+  font: 700 12px system-ui, sans-serif;
+  padding: 0;
   cursor: pointer;
 }
 .lift-buttons button:hover { background: #4b525c; }

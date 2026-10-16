@@ -502,6 +502,18 @@
       liftEl.hidden = true;
       S.keys = {};
     }
+    // Номер этажа цифрами: вторая цифра в течение 0,7 с дописывается к первой (2, 5 → 25). Одиночный 0 — 10-й.
+    var digits = '', digitsTimer = 0;
+    function typeLevel(d) {
+      digits += d;
+      clearTimeout(digitsTimer);
+      digitsTimer = setTimeout(function () {
+        var n = digits === '0' ? 10 : parseInt(digits, 10);
+        digits = '';
+        var ok = opts.levels && opts.levels().some(function (l) { return String(l.id) === String(n); });
+        if (ok) rideTo(n);
+      }, 700);
+    }
     function stepLevel(delta) {
       if (!opts.levels || !S.lift) return;
       var list = opts.levels().map(function (l) { return String(l.id); });
@@ -724,7 +736,7 @@
         if (e.code === 'PageDown') { stepLevel(-1); e.preventDefault(); return; }
         if (e.code === 'KeyP') { rideTo('P'); return; }
         var dm = /^Digit(\d)$/.exec(e.code);
-        if (dm) { rideTo(dm[1] === '0' ? 10 : +dm[1]); return; }
+        if (dm) { typeLevel(dm[1]); return; }
       }
       if (MOVE_KEYS.indexOf(e.code) >= 0) { S.keys[e.code] = true; e.preventDefault(); }
       else if (e.code === 'KeyE' && S.mode === 'walk') toggleDoor(S.target);

@@ -52,6 +52,7 @@
   // ---------- шахматка ----------
   function renderChess() {
     var box = $('chess');
+    var keep = box.scrollTop; // очистка сбрасывает прокрутку шахматки — вернём её после перерисовки
     box.innerHTML = '';
     for (var f = building.floors; f >= 1; f--) {
       var row = document.createElement('div');
@@ -77,6 +78,12 @@
         row.appendChild(c);
       });
       box.appendChild(row);
+    }
+    // 30 этажей не помещаются целиком: текущий этаж держим в видимой части шахматки
+    box.scrollTop = keep;
+    var cur = box.querySelector('.chess-row.current');
+    if (cur && (cur.offsetTop < box.scrollTop || cur.offsetTop + cur.offsetHeight > box.scrollTop + box.clientHeight)) {
+      box.scrollTop = cur.offsetTop - (box.clientHeight - cur.offsetHeight) / 2;
     }
   }
 

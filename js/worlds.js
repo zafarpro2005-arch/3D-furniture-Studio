@@ -76,9 +76,46 @@
       var bad = item.errors && item.errors.length > 0;
       models.buildItem(item).forEach(function (p) {
         var c = bad ? mix(p.color, BAD, 0.6) : p.color;
-        m.box(p.x0, p.y0, p.z0, p.x1, p.y1, p.z1, c, p.color.length === 4 ? p.color[3] : undefined);
+        if (p.wheel) addWheel(m, p.wheel, 0);
+        else m.box(p.x0, p.y0, p.z0, p.x1, p.y1, p.z1, c, p.color.length === 4 ? p.color[3] : undefined);
       });
     });
+  }
+
+  // Колесо: шина (цилиндр), диск со спицами снаружи, ступица. spin — угол поворота вокруг оси, рад.
+  // wh: { x, y, z — центр, r, width, ox, oz — направление наружу (по оси x или z) }
+  var WHEEL_SEG = 18;
+  function addWheel(m, wh, spin) {
+    var ax = Math.abs(wh.ox) > Math.abs(wh.oz) ? [Math.sign(wh.ox), 0, 0] : [0, 0, Math.sign(wh.oz)];
+    var fw = ax[0] ? [0, 0, 1] : [1, 0, 0];  // вдоль движения
+    var hw = wh.width / 2;
+    // точка на окружности радиуса rad, угол t, смещение t0 по оси наружу
+    function pt(rad, t, off) {
+      var c = Math.cos(t + spin) * rad, s = Math.sin(t + spin) * rad;
+      return [wh.x + fw[0] * c + ax[0] * off, wh.y + s, wh.z + fw[2] * c + ax[2] * off];
+    }
+    function nrm(t) { return [fw[0] * Math.cos(t + spin), Math.sin(t + spin), fw[2] * Math.cos(t + spin)]; }
+    function disc(rad, off, n, col, mt) {
+      var c = [wh.x + ax[0] * off, wh.y, wh.z + ax[2] * off];
+      for (var i = 0; i < WHEEL_SEG; i++) {
+        var t0 = i / WHEEL_SEG * Math.PI * 2, t1 = (i + 1) / WHEEL_SEG * Math.PI * 2;
+        var p0 = pt(rad, t0, off), p1 = pt(rad, t1, off);
+        m.quad(c, p0, p1, p1, n, col, mt); // треугольник (четвёртая вершина совпадает с третьей)
+      }
+    }
+    var TIRE = [0.09, 0.09, 0.1], RIM = [0.72, 0.74, 0.77], out = [ax[0], 0, ax[2]], inn = [-ax[0], 0, -ax[2]];
+    for (var i = 0; i < WHEEL_SEG; i++) {
+      var t0 = i / WHEEL_SEG * Math.PI * 2, t1 = (i + 1) / WHEEL_SEG * Math.PI * 2, tm = (t0 + t1) / 2;
+      m.quad(pt(wh.r, t0, -hw), pt(wh.r, t1, -hw), pt(wh.r, t1, hw), pt(wh.r, t0, hw), nrm(tm), TIRE);   // протектор
+    }
+    disc(wh.r, hw, out, TIRE);
+    disc(wh.r, -hw, inn, TIRE);
+    disc(wh.r * 0.66, hw + 0.4, out, RIM, MAT.metal);                                                    // диск
+    for (var k = 0; k < 5; k++) {                                                                          // спицы
+      var a = k / 5 * Math.PI * 2, da = 0.13;
+      m.quad(pt(wh.r * 0.16, a - da * 2.2, hw + 0.9), pt(wh.r * 0.16, a + da * 2.2, hw + 0.9), pt(wh.r * 0.6, a + da, hw + 0.9), pt(wh.r * 0.6, a - da, hw + 0.9), out, [0.3, 0.31, 0.33]);
+    }
+    disc(wh.r * 0.16, hw + 1.2, out, [0.85, 0.86, 0.88], MAT.metal);                                      // колпачок
   }
 
   // ---------- стены ----------
@@ -379,6 +416,17 @@
 
   // ---------- город за окнами ----------
   // keep — полуразмер свободного квадрата вокруг (cx, cz), где не сажаем деревья (под башню и площадь)
+  // Движение по дороге вдоль x из addCity: полосы по обе стороны от осевой (правостороннее).
+  // Модуль traffic.js подключён только на странице новостройки; без него машин нет.
+  function cityTraffic(cx, cz, groundY, seed) {
+    var tr = root.Planner.traffic;
+    if (!tr) return null;
+    return tr.create({
+      x0: cx - 16000, x1: cx + 16000, y: groundY + 3, seed: seed, perLane: 6,
+      lanes: [{ z: cz + 3400, dir: -1 }, { z: cz + 3800, dir: 1 }]
+    });
+  }
+
   // Дерево: ствол и крона из трёх ярусов (рисунок листвы — от оттенков ярусов)
   function addTree(m, x, z, y, size, rnd) {
     var k = size, green = [0.27 + rnd() * 0.06, 0.45 + rnd() * 0.12, 0.24];
@@ -558,6 +606,7 @@
     addCity(m, apt.W / 2, apt.L / 2, groundBelow(apt.floor, opts), apt.number * 97 + 13);
     return {
       mesh: m.data(), glass: g.data(), doors: doors, lifts: [],
+      traffic: cityTraffic(apt.W / 2, apt.L / 2, groundBelow(apt.floor, opts), apt.number * 31 + 5),
       bounds: { x: 0, z: 0, width: apt.W, length: apt.L, height: apt.H },
       blockers: blockers, labels: labels,
       spawn: { x: apt.entrance.x, z: apt.entrance.y, yaw: Math.PI },
@@ -609,6 +658,7 @@
 
     return {
       mesh: m.data(), glass: g.data(), doors: doors, lifts: lifts,
+      traffic: cityTraffic(W / 2, D / 2, groundBelow(floor, opts), floor * 17 + 3),
       bounds: { x: 0, z: 0, width: W, length: D, height: H },
       blockers: blockers, labels: labels,
       spawn: opts.spawn || null,
@@ -732,7 +782,7 @@
     var T = 30, W = lay.width, D = lay.depth, H = opts.lobbyHeight || 600, TW = lay.totalWidth;
     var CORE_Z0 = lay.lobby.y - T, CORE_Z1 = lay.lobby.y + lay.lobby.d + T;
     var STONE = [0.87, 0.85, 0.81], MET = [0.24, 0.25, 0.27], PAVE = [0.74, 0.72, 0.68];
-    var B = { x: -2200, z: -1600, w: 8600, d: 5850 }; // где можно гулять: до тротуара у дороги
+    var B = { x: -2200, z: -1600, w: 8600, d: 6850 }; // где можно гулять: через дорогу до дальнего тротуара
     var lab = opts.labels || {};
     var seed = 9173;
     function rnd() { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }
@@ -793,16 +843,13 @@
     [-1500, 0, 1450, 2250, 3700, 5300].forEach(function (x) { lamp(x, 3800); });
     [-1000, 1500, 4000].forEach(function (x) { lamp(x, -350); });
     // столбики у тротуара и машины у обочины
+    var ZEBRA = cx - 4400 + 210; // середина «зебры» у перекрёстка (addCity)
     for (var bx = B.x + 200; bx < B.x + B.w; bx += 300) {
-      if (Math.abs(bx - cx) < 400) continue;
+      if (Math.abs(bx - cx) < 400 || Math.abs(bx - ZEBRA) < 250) continue;
       m.box(bx - 7, 0, 3955, bx + 7, 80, 3969, MET, MAT.metal);
       blockers.push({ x: bx - 8, y: 3954, w: 16, d: 16 });
     }
-    var CAR_COLORS = [[0.9, 0.9, 0.9], [0.12, 0.12, 0.13], [0.55, 0.57, 0.6], [0.62, 0.1, 0.1], [0.16, 0.26, 0.48]];
-    for (var c = 0; c < 6; c++) {
-      var kind = ['sedan', 'suv', 'hatch'][c % 3];
-      addItems(m, [{ id: 'street-car' + c, catalogId: 'car', variant: kind, color: CAR_COLORS[c % CAR_COLORS.length], w: 185, d: 470, h: 150, rot: 90, x: -1500 + c * 1300, y: cz + 3200 + 30 }]);
-    }
+    // машины едут по дороге — traffic.js (cityTraffic ниже)
 
     // ----- дом над подъездом: жилые этажи, ядро с лифтами, парапет -----
     var top = H + opts.floors * opts.floorHeight;
@@ -949,7 +996,8 @@
       blockers: blockers, labels: labels,
       spawn: opts.spawn || { x: W / 2, z: D - T - 500, yaw: 0 },
       cut: 125, background: 'sky', orbit: { pitch: 0.95, yaw: 0.35 },
-      level: 'L', walkHint: opts.walkHint
+      level: 'L', walkHint: opts.walkHint,
+      traffic: cityTraffic(cx, cz, -8, 4411)
     };
   }
 
@@ -1038,13 +1086,14 @@
       blockers: [], labels: labels,
       spawn: null, cut: null, background: 'sky',
       orbit: { yaw: 0.65, pitch: 0.22, targetY: top * 0.5 },
-      noWalk: true, hint: opts.hint
+      noWalk: true, hint: opts.hint,
+      traffic: cityTraffic(cx, cz, -2, 7919)
     };
   }
 
   root.Planner.worlds = {
     towerWorld: towerWorld,
     roomWorld: roomWorld, apartmentWorld: apartmentWorld, floorWorld: floorWorld, parkingWorld: parkingWorld, lobbyWorld: lobbyWorld,
-    doorMesh: doorMesh, doorBlockers: doorBlockers, Mesh: Mesh, MAT: MAT, mergeWalls: mergeWalls
+    doorMesh: doorMesh, doorBlockers: doorBlockers, Mesh: Mesh, MAT: MAT, mergeWalls: mergeWalls, addWheel: addWheel
   };
 })(this);

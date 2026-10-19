@@ -537,13 +537,10 @@
     var body = colorOf(m, [0.6, 0.62, 0.66]);
     var wheelD = Math.min(66, h * 0.44), wr = wheelD / 2;
     var belt = h * (kind === 'suv' ? 0.58 : 0.55);
-    // колёса
-    [[d * 0.17], [d * 0.8]].forEach(function (p) {
-      var vc = p[0];
-      P(0, vc - wr, 0, 22, vc + wr, wheelD, C.black);
-      P(w - 22, vc - wr, 0, w, vc + wr, wheelD, C.black);
-      P(-0.1, vc - wr * 0.5, wr - wr * 0.5, 0.5, vc + wr * 0.5, wr + wr * 0.5, C.steel);
-      P(w - 0.5, vc - wr * 0.5, wr - wr * 0.5, w, vc + wr * 0.5, wr + wr * 0.5, C.steel);
+    // колёса — круглые (цилиндры, см. wheel в buildItem); задние у v≈0, передние у v≈d
+    [d * 0.17, d * 0.8].forEach(function (vc) {
+      m.wheel(11, vc, wr, wr, 22, -1, C.black);
+      m.wheel(w - 11, vc, wr, wr, 22, 1, C.black);
     });
     P(3, 4, wr * 0.55, w - 3, d - 4, belt, body);                     // кузов
     P(5, 0, wr * 0.55, w - 5, 6, belt * 0.7, tint(body, 0.6));        // задний бампер
@@ -619,6 +616,8 @@
   // Поворот по часовой стрелке, как на плане. Куда смотрит задняя сторона (v=0):
   // 0 — вверх (к y=0), 90 — вправо, 180 — вниз, 270 — влево.
   // item.z — высота основания (например, телевизор на тумбе, картина на стене).
+  // Колесо — часть с полем wheel: { x, y, z — центр, r, width, ox, oz — наружу по оси }; x0..z1 — его габарит
+  // (по нему колесо рисуется на плане сверху), в 3D — цилиндр (worlds.js addWheel).
   function buildItem(item) {
     var w = item.w, d = item.d, h = item.h, base = item.z || 0;
     var parts = [];
@@ -640,7 +639,17 @@
         color: color
       });
     }
-    (MODELS[item.catalogId] || custom)({ w: w, d: d, h: h, P: P, rnd: random(item.id || 1), item: item });
+    // колесо: центр (u, v, z), радиус, ширина по оси u, out — наружу (+1 к u = w, −1 к u = 0)
+    function wheel(u, v, z, r, width, out, color) {
+      var c = toRoom(u, v), o = toRoom(u + out, v);
+      var a = toRoom(u - width / 2, v - r), b = toRoom(u + width / 2, v + r);
+      parts.push({
+        x0: Math.min(a.x, b.x), x1: Math.max(a.x, b.x), z0: Math.min(a.z, b.z), z1: Math.max(a.z, b.z),
+        y0: base + z - r, y1: base + z + r, color: color,
+        wheel: { x: c.x, y: base + z, z: c.z, r: r, width: width, ox: o.x - c.x, oz: o.z - c.z }
+      });
+    }
+    (MODELS[item.catalogId] || custom)({ w: w, d: d, h: h, P: P, wheel: wheel, rnd: random(item.id || 1), item: item });
     return parts;
   }
 

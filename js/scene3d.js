@@ -47,10 +47,14 @@
   }
 
   // ---------- шейдеры ----------
-  // Материал — в альфе цвета: id = floor(a * 16). 1 паркет, 2 мелкая плитка, 3 крупная плитка,
+  // Материал — в альфе цвета: id = floor(a * 32). 1 паркет, 2 мелкая плитка, 3 крупная плитка,
   // 4 бетон, 5 ковролин, 7 свечение (лампы), 8 краска, 9 обои-полосы, 10 обои с узором,
-  // 11 детские обои, 12 кафель на стенах, 13 кухонный фартук, 14 стены без рисунка.
-  // Стены (8–14) в режиме обзора срезаются по высоте uCut.
+  // 11 детские обои, 12 кафель на стенах, 13 кухонный фартук, 14 стены без рисунка,
+  // 15 асфальт, 16 трава, 17 тротуарная плитка, 18 зеркальное остекление, 19 шлифованный металл,
+  // 20 мрамор, 21 дерево, 22 фасад городского дома с окнами, 23 фасадная штукатурка, 25 фасад башни.
+  // Стены (8–14, 20, 21, 25) в режиме обзора срезаются по высоте uCut.
+  // Стекло — отдельный прозрачный проход (uGlass). Альфа < 0.5 — оконное стекло: базовая непрозрачность
+  // a·2, остальное добавляет отражение неба по Френелю. Альфа ≥ 0.5 — тюль с непрозрачностью (a − 0.5)·2.
   var VS = [
     'attribute vec3 aPos; attribute vec3 aNorm; attribute vec4 aCol;',
     'uniform mat4 uMVP;',
@@ -63,35 +67,85 @@
     '#else',
     'precision mediump float;',
     '#endif',
-    'uniform float uCut; uniform float uGlass;',
+    'uniform float uCut; uniform float uGlass; uniform float uFog; uniform vec3 uEye;',
     'varying vec3 vN; varying vec4 vC; varying vec3 vW;',
+    'const vec3 SUN = vec3(0.3008, 0.8594, 0.2148);', // нормированный (0.35, 1, 0.25)
+    'const vec3 HAZE = vec3(0.83, 0.88, 0.92);',
     'float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }',
+    'float noise(vec2 p) {',
+    '  vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);',
+    '  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);',
+    '}',
+    'float fbm(vec2 p) { float s = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { s += a * noise(p); p = p * 2.03 + 17.1; a *= 0.5; } return s; }',
     'float grout(float a, float size, float w) { float f = fract(a / size); return step(f, w) + step(1.0 - w, f); }',
+    // небо для отражений: зенит, дымка у горизонта, земля снизу
+    'vec3 sky(vec3 d) {',
+    '  vec3 hor = vec3(0.86, 0.9, 0.93), zen = vec3(0.36, 0.58, 0.85), gnd = vec3(0.34, 0.36, 0.33);',
+    '  return d.y > 0.0 ? mix(hor, zen, pow(d.y, 0.55)) : mix(hor, gnd, pow(-d.y, 0.35));',
+    '}',
+    // остекление фасада: тёмный интерьер + отражение неба по Френелю + блик солнца; кое-где горит свет
+    'vec3 glassFacade(vec3 n, vec3 V, vec2 cell, float fres) {',
+    '  float pane = hash(floor(cell));',
+    '  vec3 R = reflect(-V, n);',
+    '  R = normalize(R + vec3(0.0, (pane - 0.5) * 0.08, 0.0));', // соседние стеклопакеты отражают чуть по-разному
+    '  vec3 inside = vec3(0.07, 0.09, 0.11) + (pane > 0.86 ? vec3(0.3, 0.23, 0.14) : vec3(0.0));',
+    '  vec3 c = mix(inside, sky(R), 0.42 + 0.55 * fres);',
+    '  return c + vec3(1.0, 0.95, 0.85) * pow(max(dot(R, SUN), 0.0), 220.0);',
+    '}',
     'void main() {',
-    '  if (uGlass > 0.5) { gl_FragColor = vC; return; }',
-    '  float id = floor(vC.a * 16.0 + 0.001);',
-    '  if (id >= 8.0 && id <= 14.0 && vW.y > uCut) discard;',
-    '  vec3 base = vC.rgb;',
     '  vec3 n = normalize(vN);',
+    '  vec3 V = normalize(uEye - vW);',
+    '  float dist = length(uEye - vW);',
+    '  float haze = uFog > 0.5 ? clamp(1.0 - exp(-dist / 70000.0), 0.0, 0.7) : 0.0;',
+    '  if (uGlass > 0.5) {',
+    '    if (vW.y > uCut) discard;',
+    '    if (dot(n, V) < 0.0) n = -n;', // стекло видно с обеих сторон
+    '    float gf = pow(1.0 - clamp(dot(n, V), 0.0, 1.0), 5.0);',
+    '    if (vC.a >= 0.5) {', // тюль: лёгкая ткань с переплетением и складками
+    '      float weave = 0.93 + 0.07 * hash(floor(vec2(vW.x + vW.z, vW.y) / 0.7));',
+    '      float folds = 0.88 + 0.12 * sin((vW.x + vW.z) * 0.32);',
+    '      gl_FragColor = vec4(vC.rgb * weave * folds, (vC.a - 0.5) * 2.0 * (0.85 + 0.3 * gf));',
+    '      return;',
+    '    }',
+    '    vec3 R = reflect(-V, n);',
+    '    float f = 0.04 + 0.96 * gf;',
+    '    float spec = pow(max(dot(R, SUN), 0.0), 600.0);',
+    '    vec3 gc = mix(vC.rgb, sky(R), f) + spec;',
+    '    gl_FragColor = vec4(mix(gc, HAZE, haze), clamp(vC.a * 2.0 + f * 0.8 + spec, 0.0, 0.92));',
+    '    return;',
+    '  }',
+    '  float fres = pow(1.0 - clamp(abs(dot(n, V)), 0.0, 1.0), 5.0);',
+    '  float id = floor(vC.a * 32.0 + 0.001);',
+    '  bool wall = (id >= 8.0 && id <= 14.0) || id == 20.0 || id == 21.0 || id == 25.0;',
+    '  if (wall && vW.y > uCut) discard;',
+    '  vec3 base = vC.rgb;',
     '  float h = vW.x + vW.z;', // горизонтальная координата на стене (стены идут вдоль осей)
+    '  vec2 pp = abs(n.y) > 0.5 ? vW.xz : vec2(h, vW.y);', // координаты на поверхности
+    '  float near = clamp(1.0 - dist / 5000.0, 0.0, 1.0);', // мелкий рисунок вдали гасим — без ряби
+    '  float gloss = 0.0;',
     '  if (id == 7.0) { gl_FragColor = vec4(base, 1.0); return; }',
-    '  if (id == 1.0) {', // паркет: доски 14 см, длина 120 см, ряды со смещением
+    '  if (id == 1.0) {', // паркет: доски 14 см, длина 120 см, ряды со смещением, волокна
     '    float row = floor(vW.z / 14.0);',
     '    float off = fract(row * 0.37) * 120.0;',
     '    float seg = floor((vW.x + off) / 120.0);',
-    '    base *= 0.88 + 0.2 * hash(vec2(row, seg));',
-    '    base *= 0.96 + 0.04 * sin(vW.x * 0.9 + row * 3.0);',
+    '    base *= 0.86 + 0.24 * hash(vec2(row, seg));',
+    '    base *= 0.9 + 0.12 * fbm(vec2((vW.x + off) * 0.03, vW.z * 0.9 + seg * 7.0));',
+    '    base *= 0.97 + 0.03 * sin(vW.x * 0.9 + row * 3.0 + fbm(vW.xz * 0.2) * 4.0);',
     '    if (fract(vW.z / 14.0) < 0.04 || fract((vW.x + off) / 120.0) < 0.006) base *= 0.78;',
+    '    gloss = 0.14;',
     '  } else if (id == 2.0) {', // мелкая плитка 20×20
     '    base *= 0.95 + 0.06 * hash(floor(vW.xz / 20.0));',
-    '    if (max(grout(vW.x, 20.0, 0.03), grout(vW.z, 20.0, 0.03)) > 0.5) base *= 0.75;',
-    '  } else if (id == 3.0) {', // крупный керамогранит 60×60
-    '    base *= 0.94 + 0.08 * hash(floor(vW.xz / 60.0));',
-    '    if (max(grout(vW.x, 60.0, 0.008), grout(vW.z, 60.0, 0.008)) > 0.5) base *= 0.8;',
+    '    if (max(grout(vW.x, 20.0, 0.03), grout(vW.z, 20.0, 0.03)) > 0.5) base *= 0.75; else gloss = 0.22;',
+    '  } else if (id == 3.0) {', // крупный керамогранит 60×60 с лёгкими разводами
+    '    base *= 0.94 + 0.08 * hash(floor(vW.xz / 60.0)) + 0.05 * (fbm(vW.xz * 0.04) - 0.5);',
+    '    if (max(grout(vW.x, 60.0, 0.008), grout(vW.z, 60.0, 0.008)) > 0.5) base *= 0.8; else gloss = 0.3;',
     '  } else if (id == 4.0) {', // бетонный пол с пятнами
-    '    base *= 0.9 + 0.1 * hash(floor(vW.xz / 3.0)) + 0.05 * sin(vW.x * 0.01) * sin(vW.z * 0.013);',
+    '    base *= 0.9 + 0.1 * hash(floor(vW.xz / 3.0)) + 0.05 * sin(vW.x * 0.01) * sin(vW.z * 0.013) + 0.08 * (fbm(vW.xz * 0.01) - 0.5);',
+    '    gloss = 0.08;',
     '  } else if (id == 5.0) {', // ковролин
     '    base *= 0.92 + 0.08 * hash(floor(vW.xz / 1.2));',
+    '  } else if (id == 8.0 || id == 14.0) {', // краска: едва заметная фактура валика
+    '    base *= 0.985 + 0.03 * (noise(pp * 0.35) - 0.5) * near;',
     '  } else if (id == 9.0) {', // обои в полоску
     '    float f = fract(h / 24.0);',
     '    base *= f < 0.5 ? 1.0 : 0.94;',
@@ -107,20 +161,68 @@
     '    base *= 0.97 + 0.03 * sin(h * 0.08 + vW.y * 0.05);',
     '  } else if (id == 12.0) {', // кафель на стене 20×30
     '    base *= 0.96 + 0.06 * hash(floor(vec2(h / 20.0, vW.y / 30.0)));',
-    '    if (max(grout(h, 20.0, 0.025), grout(vW.y, 30.0, 0.02)) > 0.5) base *= 0.8;',
+    '    if (max(grout(h, 20.0, 0.025), grout(vW.y, 30.0, 0.02)) > 0.5) base *= 0.8; else gloss = 0.25;',
     '  } else if (id == 13.0) {', // кухня: фартук-«кабанчик» до 150 см, выше — краска
     '    if (vW.y < 150.0) {',
     '      base = mix(base, vec3(0.97), 0.55);',
     '      float row = floor(vW.y / 10.0);',
     '      float hh = h + step(0.5, fract(row * 0.5)) * 15.0;',
-    '      if (max(grout(hh, 30.0, 0.02), grout(vW.y, 10.0, 0.06)) > 0.5) base *= 0.82;',
+    '      if (max(grout(hh, 30.0, 0.02), grout(vW.y, 10.0, 0.06)) > 0.5) base *= 0.82; else gloss = 0.25;',
     '    }',
+    '  } else if (id == 15.0) {', // асфальт: крупные пятна, вблизи — крошка
+    '    base *= 0.84 + 0.3 * (fbm(vW.xz * 0.004) - 0.5) + 0.2 * (hash(floor(vW.xz * 0.7)) - 0.5) * near;',
+    '  } else if (id == 16.0) {', // трава: пятна разного оттенка, вблизи — травинки
+    '    base = mix(base * vec3(0.8, 0.92, 0.72), base * vec3(1.12, 1.08, 0.82), fbm(vW.xz * 0.0015));',
+    '    base *= 0.9 + 0.14 * fbm(vW.xz * 0.03) + 0.18 * (hash(floor(vW.xz / 1.6)) - 0.5) * near;',
+    '  } else if (id == 17.0) {', // тротуарная плитка 40×20 вразбежку
+    '    float row = floor(vW.z / 20.0);',
+    '    float off = mod(row, 2.0) * 20.0;',
+    '    base *= 0.88 + 0.16 * hash(vec2(floor((vW.x + off) / 40.0), row)) + 0.06 * (fbm(vW.xz * 0.01) - 0.5);',
+    '    if (max(grout(vW.x + off, 40.0, 0.02), grout(vW.z, 20.0, 0.04)) > 0.5) base = mix(base, base * 0.7, near);',
+    '  } else if (id == 18.0) {', // зеркальное остекление
+    '    gl_FragColor = vec4(mix(glassFacade(n, V, vec2(h / 150.0, vW.y / 340.0), fres), HAZE, haze), 1.0);',
+    '    return;',
+    '  } else if (id == 19.0) {', // шлифованный металл: вертикальные риски, отражение неба и блик
+    '    vec3 R = reflect(-V, n);',
+    '    base *= 0.9 + 0.12 * noise(vec2(pp.x * 1.5, pp.y * 0.01));',
+    '    base = mix(base, sky(R) * 1.05, 0.25) + vec3(0.35) * pow(max(dot(R, SUN), 0.0), 40.0);',
+    '  } else if (id == 20.0) {', // мрамор: плиты 80×80, прожилки
+    '    vec2 q = pp + vec2(fbm(pp * 0.012) * 60.0);',
+    '    float vein = abs(sin(q.x * 0.012 + q.y * 0.007 + fbm(pp * 0.02) * 5.0));',
+    '    base *= mix(0.86, 1.0, smoothstep(0.0, 0.07, vein)) * (0.96 + 0.06 * hash(floor(pp / 80.0)));',
+    '    if (max(grout(pp.x, 80.0, 0.004), grout(pp.y, 80.0, 0.004)) > 0.5) base *= 0.86;',
+    '    gloss = 0.5;',
+    '  } else if (id == 21.0) {', // дерево: вертикальные ламели 12 см с волокнами
+    '    base *= 0.82 + 0.3 * fbm(vec2(pp.x * 0.09, pp.y * 0.004)) + 0.06 * sin(pp.y * 0.05 + fbm(pp * 0.05) * 9.0);',
+    '    if (fract(pp.x / 12.0) < 0.05) base *= 0.7;',
+    '    gloss = 0.1;',
+    '  } else if (id == 22.0 || id == 25.0) {', // фасад с окнами: дома города и башня над подъездом
+    '    if (abs(n.y) > 0.5) base *= 0.85 + 0.15 * noise(vW.xz * 0.02);', // крыша
+    '    else if (id == 22.0) {',
+    '      vec2 c = vec2(h / 320.0, vW.y / 340.0), f = fract(c);',
+    '      if (f.x > 0.16 && f.x < 0.84 && f.y > 0.24 && f.y < 0.82) base = glassFacade(n, V, c, fres);',
+    '      else base *= 0.92 + 0.1 * noise(pp * 0.05);',
+    '    } else {', // башня: узкие окна между металлическими пилонами, пояса перекрытий
+    '      vec2 c = vec2(h / 100.0, vW.y / 340.0), f = fract(c);',
+    '      if (f.x < 0.46 || f.y < 0.07) {',
+    '        vec3 R = reflect(-V, n);',
+    '        base = mix(base * (0.9 + 0.1 * noise(vec2(h * 1.5, vW.y * 0.01))), sky(R), 0.25) + vec3(0.3) * pow(max(dot(R, SUN), 0.0), 40.0);',
+    '        if (f.y < 0.07) base *= 0.8;',
+    '      } else base = glassFacade(n, V, c, fres);',
+    '    }',
+    '  } else if (id == 23.0) {', // фасадная штукатурка
+    '    base *= 0.95 + 0.08 * (fbm(pp * 0.05) - 0.5) + 0.04 * (hash(floor(pp * 2.0)) - 0.5) * near;',
     '  }',
-    '  float lit = 0.66 + 0.26 * max(dot(n, normalize(vec3(0.35, 1.0, 0.25))), 0.0)',
+    // мягкое затенение стен у пола
+    '  if (wall && abs(n.y) < 0.5) base *= 0.84 + 0.16 * smoothstep(0.0, 40.0, vW.y);',
+    '  float lit = 0.66 + 0.26 * max(dot(n, SUN), 0.0)',
     '            + 0.16 * max(dot(n, normalize(vec3(-0.5, 0.4, 0.75))), 0.0)',
     '            + 0.12 * max(dot(n, normalize(vec3(0.6, 0.3, -0.7))), 0.0);',
     '  if (n.y < -0.9) lit = 0.9;', // потолок освещён ровно
-    '  gl_FragColor = vec4(base * lit, 1.0);',
+    '  vec3 col = base * lit;',
+    // блеск полов и плитки: под углом в них отражается светлое окружение (снаружи — небо)
+    '  if (gloss > 0.0) col = mix(col, uFog > 0.5 ? sky(reflect(-V, n)) : vec3(0.95, 0.94, 0.9), gloss * (0.08 + 0.92 * fres) * 0.6);',
+    '  gl_FragColor = vec4(mix(col, HAZE, haze), 1.0);', // воздушная дымка вдали
     '}'
   ].join('\n');
 
@@ -159,7 +261,7 @@
     var levelEl = ensureEl(el, 'scene-level');
 
     var gl = canvas.getContext('webgl', { antialias: true }) || canvas.getContext('experimental-webgl');
-    var prog, buf, glassBuf, doorBuf, vertexCount = 0, glassCount = 0, doorCount = 0, loc = {};
+    var prog, buf, glassBuf, doorBuf, doorGlassBuf, vertexCount = 0, glassCount = 0, doorCount = 0, doorGlassCount = 0, loc = {};
     var glReady = false; // шейдеры и буферы созданы, контекст жив
 
     // Шейдеры и буферы. Сбой WebGL (контекст потерян ещё до старта, драйвер не собрал шейдер)
@@ -179,11 +281,14 @@
           col: gl.getAttribLocation(prog, 'aCol'),
           mvp: gl.getUniformLocation(prog, 'uMVP'),
           cut: gl.getUniformLocation(prog, 'uCut'),
-          glass: gl.getUniformLocation(prog, 'uGlass')
+          glass: gl.getUniformLocation(prog, 'uGlass'),
+          fog: gl.getUniformLocation(prog, 'uFog'),
+          eye: gl.getUniformLocation(prog, 'uEye')
         };
         buf = gl.createBuffer();
         glassBuf = gl.createBuffer();
         doorBuf = gl.createBuffer();
+        doorGlassBuf = gl.createBuffer();
       } catch (e) {
         if (window.console) console.warn('3D недоступно:', e && e.message);
         return false;
@@ -416,7 +521,7 @@
 
     // ---------- двери ----------
     function doorCenter(d) {
-      return d.kind === 'slide' ? { x: d.line, z: (d.a + d.b) / 2 } : { x: (d.a + d.b) / 2, z: d.line };
+      return d.kind === 'slide' && d.axis !== 'x' ? { x: d.line, z: (d.a + d.b) / 2 } : { x: (d.a + d.b) / 2, z: d.line };
     }
     // Ближайшая распашная дверь перед игроком
     function findDoor() {
@@ -469,6 +574,12 @@
         if (inCab) S.lift = l;
         if (S.ride) l.door.target = 0;
         else l.door.target = near || inCab ? 1 : 0;
+      });
+      // автоматические стеклянные двери (вход в подъезд) открываются, когда к ним подходят
+      S.world.doors.forEach(function (d) {
+        if (!d.auto) return;
+        var c = doorCenter(d);
+        d.target = S.mode === 'walk' && Math.hypot(c.x - S.walk.x, c.z - S.walk.z) < 260 ? 1 : 0;
       });
       var show = !!S.lift && !S.ride && !!opts.levels;
       if (show && liftEl.hidden) {
@@ -622,12 +733,14 @@
         canvas.height = Math.round(ch * dpr);
       }
       if (S.doorsDirty) {
-        doorCount = S.world.doors.length ? upload(doorBuf, root.Planner.worlds.doorMesh(S.world.doors)) : 0;
+        var dm = S.world.doors.length ? root.Planner.worlds.doorMesh(S.world.doors) : null;
+        doorCount = dm ? upload(doorBuf, dm.solid) : 0;
+        doorGlassCount = dm && dm.glass.length ? upload(doorGlassBuf, dm.glass) : 0;
         S.doorsDirty = false;
       }
       var b = bounds();
       var cam = camera();
-      var far = S.world.background === 'sky' ? 80000 : Math.max(b.width, b.length) * 6 + 2000;
+      var far = S.world.background === 'sky' ? 130000 : Math.max(b.width, b.length) * 6 + 2000;
       var near = S.mode === 'orbit' ? 10 : 5;
       var mvp = mul(perspective(S.mode === 'orbit' ? 0.85 : 1.15, cw / Math.max(1, ch), near, far), lookAt(cam.eye, cam.target));
 
@@ -637,6 +750,8 @@
       gl.useProgram(prog);
       gl.uniformMatrix4fv(loc.mvp, false, mvp);
       gl.uniform1f(loc.cut, cutHeight());
+      gl.uniform1f(loc.fog, S.world.background === 'sky' ? 1 : 0);
+      gl.uniform3f(loc.eye, cam.eye[0], cam.eye[1], cam.eye[2]);
       gl.enableVertexAttribArray(loc.pos);
       gl.enableVertexAttribArray(loc.norm);
       gl.enableVertexAttribArray(loc.col);
@@ -654,15 +769,16 @@
         gl.drawArrays(gl.TRIANGLES, 0, doorCount);
       }
 
-      // стекло — прозрачное, после всего остального (в обзоре стены срезаны — стекло не нужно)
-      if (glassCount && S.mode !== 'orbit') {
+      // стекло и тюль — прозрачные, после всего остального (в обзоре срезаются вместе со стенами).
+      // Альфу канваса смешиваем отдельно: под прозрачным канвасом — CSS-фон сцены, иначе стекло на фоне неба светится.
+      if (glassCount || doorGlassCount) {
         gl.enable(gl.BLEND);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
         gl.depthMask(false);
         gl.disable(gl.CULL_FACE);
         gl.uniform1f(loc.glass, 1);
-        bindAttribs(glassBuf);
-        gl.drawArrays(gl.TRIANGLES, 0, glassCount);
+        if (glassCount) { bindAttribs(glassBuf); gl.drawArrays(gl.TRIANGLES, 0, glassCount); }
+        if (doorGlassCount) { bindAttribs(doorGlassBuf); gl.drawArrays(gl.TRIANGLES, 0, doorGlassCount); }
         gl.depthMask(true);
       }
 
@@ -675,7 +791,7 @@
       overviewBtn.hidden = !walk;
       crosshair.hidden = !walk;
       pad.hidden = !walk;
-      hintEl.textContent = i18n.t(walk ? (S.world.lifts.length ? 'hintWalkLift' : (S.world.doors.length ? 'hintWalkDoors' : 'hintWalk')) : (S.world.hint || opts.orbitHint || 'hintOrbit'));
+      hintEl.textContent = i18n.t(walk ? S.world.walkHint || (S.world.lifts.length ? 'hintWalkLift' : (S.world.doors.length ? 'hintWalkDoors' : 'hintWalk')) : (S.world.hint || opts.orbitHint || 'hintOrbit'));
       if (S.mode === 'orbit') infoEl.textContent = opts.getInfo ? opts.getInfo(S.world) : '';
       showLevel();
     }
@@ -740,6 +856,7 @@
         if (e.code === 'PageUp') { stepLevel(1); e.preventDefault(); return; }
         if (e.code === 'PageDown') { stepLevel(-1); e.preventDefault(); return; }
         if (e.code === 'KeyP') { rideTo('P'); return; }
+        if (e.code === 'KeyL' && opts.levels().some(function (l) { return l.id === 'L'; })) { rideTo('L'); return; }
         var dm = /^Digit(\d)$/.exec(e.code);
         if (dm) { typeLevel(dm[1]); return; }
       }

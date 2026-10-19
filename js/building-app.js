@@ -244,7 +244,16 @@
   function aptLabel(a) { return '№' + a.number + ' · ' + a.rooms + t('roomsShort'); }
   function floorWorldFor(f, spawn) {
     return Planner.worlds.floorWorld(floorApts(f), gen.floorLayout(f), f, {
-      floorHeight: building.floorHeight, roomName: roomName, aptLabel: aptLabel, lobbyLabel: t('lobby'), spawn: spawn
+      floorHeight: building.floorHeight, lobbyHeight: gen.params.lobbyHeight,
+      roomName: roomName, aptLabel: aptLabel, lobbyLabel: t('lobby'), spawn: spawn
+    });
+  }
+  // подъезд на земле и улица; spawn — null: остаёмся там же, где вышли из лифта
+  function lobbyWorld(spawn) {
+    return Planner.worlds.lobbyWorld(gen.floorLayout(1), {
+      floors: building.floors, floorHeight: building.floorHeight, lobbyHeight: gen.params.lobbyHeight,
+      spawn: spawn, walkHint: 'hintWalkLobby',
+      labels: { reception: t('lblReception'), lounge: t('lblLounge'), mail: t('lblMail'), lifts: t('lobby'), entrance: t('lblEntrance') }
     });
   }
   function parkingWorld(spawn) {
@@ -263,11 +272,12 @@
   var scene = Planner.createScene($('scene'), {
     getWorld: function () {
       var a = byNumber[state.selected];
-      if (sceneMode === 'apt') return Planner.worlds.apartmentWorld(a, { floorHeight: building.floorHeight, roomName: roomName });
+      if (sceneMode === 'apt') return Planner.worlds.apartmentWorld(a, { floorHeight: building.floorHeight, lobbyHeight: gen.params.lobbyHeight, roomName: roomName });
+      if (sceneMode === 'lobby') return lobbyWorld(undefined);
       if (sceneMode === 'parking') return parkingWorld(lobbySpawn());
       if (sceneMode === 'tower') {
         return Planner.worlds.towerWorld({
-          floors: building.floors, floorHeight: building.floorHeight, floor: state.floor,
+          floors: building.floors, floorHeight: building.floorHeight, lobbyHeight: gen.params.lobbyHeight, floor: state.floor,
           floorLabel: t('floorN', { n: state.floor }), nameLabel: t('complexName'), hint: 'hintOrbitTower'
         });
       }
@@ -278,16 +288,17 @@
       if (sceneMode === 'apt') return t('aptInfo3d', { n: a.number, r: a.rooms, a: a.area, f: a.floor });
       if (sceneMode === 'tower') return t('towerInfo', { n: building.floors, f: state.floor });
       if (world && world.level === 'P') return t('parkingInfo', { n: parking.spaces.length, free: parking.free });
+      if (world && world.level === 'L') return t('lobbyInfo');
       return t('floorInfo3d', { f: world ? world.level : a.floor });
     },
     orbitHint: 'hintOrbitApt',
     levels: function () {
-      var out = [{ id: 'P', label: 'P' }];
+      var out = [{ id: 'P', label: 'P' }, { id: 'L', label: 'L' }];
       for (var f = 1; f <= building.floors; f++) out.push({ id: f, label: String(f) });
       return out;
     },
-    onLift: function (id) { return id === 'P' ? parkingWorld(null) : floorWorldFor(+id, null); },
-    levelName: function (id) { return id === 'P' ? t('parkingLevel') : t('floorN', { n: id }); },
+    onLift: function (id) { return id === 'P' ? parkingWorld(null) : id === 'L' ? lobbyWorld(null) : floorWorldFor(+id, null); },
+    levelName: function (id) { return id === 'P' ? t('parkingLevel') : id === 'L' ? t('lobbyLevel') : t('floorN', { n: id }); },
     onClose: function () {},
     // ошибку 3D показываем под кнопками, заголовок квартиры не трогаем
     onError: function (text) { $('sceneError').textContent = text; $('sceneError').hidden = false; }
@@ -297,6 +308,7 @@
   $('overviewBtn').addEventListener('click', function () { sceneMode = 'apt'; scene.open(false); });
   $('parkingBtn').addEventListener('click', function () { sceneMode = 'parking'; scene.open(true); });
   $('towerBtn').addEventListener('click', function () { sceneMode = 'tower'; scene.open(false); });
+  $('lobbyBtn').addEventListener('click', function () { sceneMode = 'lobby'; scene.open(true); });
 
   var resizeTimer = 0;
   window.addEventListener('resize', function () {

@@ -24,7 +24,7 @@
 Инструменты:
 - `search_apartments` — `rooms`, `max_price`, `min_area`, `floor`, `include_sold`, `limit` (все необязательны) → квартиры в продаже по возрастанию цены.
 - `get_apartments` — `number` → одна квартира (с ценой за м²) или ошибка.
-- `calc_mortgage` — `price`, `down_payment_percent`, `annual_rate_percent`, `years` → аннуитетный платёж, кредит, переплата.
+- `calc_mortgage` — `loan_amount` **или** `price` + `down_payment_percent`; `annual_rate_percent`, `years` → месячная ставка, ежемесячный платёж (аннуитет), общая сумма выплат (платёж × месяцы), переплата.
 - `booking_view` — `name`, `phone`, `datetime` (`YYYY-MM-DDTHH:MM`, Ташкент, 9:00–20:00), `apartment` → запись в `booking.json`.
 
 Запуск и проверка:

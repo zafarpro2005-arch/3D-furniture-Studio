@@ -44,6 +44,18 @@ test('get_apartments: по номеру и ошибка для несущест�
   assert.throws(() => getApartment(apartments, 999), /не найдена/);
 });
 
+test('calc_mortgage: кредит 80 000 000, 24% годовых, 10 лет', () => {
+  const m = calcMortgage({ loan_amount: 80_000_000, annual_rate_percent: 24, years: 10 });
+  assert.equal(m.monthly_rate_percent, 2);
+  assert.equal(m.months, 120);
+  assert.equal(m.monthly_payment, 1_763_848);
+  assert.equal(m.total_paid, 211_661_760);
+  assert.equal(m.overpayment, 131_661_760);
+  assert.ok(Math.abs(m.overpayment - 131_661_730) < 100); // «около 131 661 730»
+  assert.throws(() => calcMortgage({ annual_rate_percent: 24, years: 10 }), /либо/);
+  assert.throws(() => calcMortgage({ loan_amount: 1, price: 1, annual_rate_percent: 24, years: 10 }), /либо/);
+});
+
 test('calc_mortgage: аннуитет и нулевая ставка', () => {
   const m = calcMortgage({ price: 1_000_000_000, down_payment_percent: 20, annual_rate_percent: 24, years: 10 });
   assert.equal(m.loan_amount, 800_000_000);

@@ -31,20 +31,25 @@ export function getApartment(list, number) {
   return view(a);
 }
 
-// calc_mortgage: аннуитет. Платёж = S · r / (1 − (1 + r)^−n), r — месячная ставка, n — число месяцев
-export function calcMortgage({ price, down_payment_percent, annual_rate_percent, years }) {
-  const down = Math.round(price * down_payment_percent / 100);
-  const loan = price - down;
+// calc_mortgage: аннуитет. Платёж = S · r / (1 − (1 + r)^−n), где S — сумма кредита,
+// r — месячная ставка (годовая / 12 / 100), n — число месяцев. Общая сумма выплат — платёж × n
+// (платёж округлён до сума, как его и платят), переплата — выплаты минус кредит.
+// Кредит задаётся либо прямо (loan_amount), либо ценой и первоначальным взносом в процентах.
+export function calcMortgage({ loan_amount, price, down_payment_percent = 0, annual_rate_percent, years }) {
+  if ((loan_amount === undefined) === (price === undefined)) throw new Error('Укажите либо сумму кредита (loan_amount), либо цену (price) с первоначальным взносом');
+  const down = price === undefined ? 0 : Math.round(price * down_payment_percent / 100);
+  const loan = price === undefined ? loan_amount : price - down;
   const n = years * 12;
   const r = annual_rate_percent / 100 / 12;
   const exact = loan === 0 ? 0 : r === 0 ? loan / n : loan * r / (1 - Math.pow(1 + r, -n));
   const monthly = Math.round(exact);
-  const totalPaid = Math.round(exact * n);
-  return {
-    currency: 'UZS', price, down_payment: down, loan_amount: loan, months: n,
-    monthly_payment: monthly, total_paid: totalPaid, overpayment: totalPaid - loan,
-    total_cost: down + totalPaid
+  const totalPaid = monthly * n;
+  const out = {
+    currency: 'UZS', loan_amount: loan, months: n, monthly_rate_percent: Math.round(r * 100 * 1e6) / 1e6,
+    monthly_payment: monthly, total_paid: totalPaid, overpayment: totalPaid - loan
   };
+  if (price !== undefined) Object.assign(out, { price, down_payment: down, total_cost: down + totalPaid });
+  return out;
 }
 
 // Телефон: +998XXXXXXXXX или 9 цифр местного номера (добавим +998); пробелы, скобки, дефисы допустимы

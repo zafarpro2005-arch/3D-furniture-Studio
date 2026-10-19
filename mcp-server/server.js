@@ -49,10 +49,11 @@ export function buildMcpServer() {
 
   server.registerTool('calc_mortgage', {
     title: 'Ипотека (аннуитет)',
-    description: 'Считает аннуитетный платёж: ежемесячный платёж, сумма кредита, переплата. Все суммы в сумах.',
+    description: 'Аннуитет с месячной ставкой: ежемесячный платёж, общая сумма выплат и переплата. Кредит — либо loan_amount, либо price с первоначальным взносом. Все суммы в сумах.',
     inputSchema: {
-      price: z.number().int().positive().describe('Цена квартиры, сум'),
-      down_payment_percent: z.number().min(0).max(90).describe('Первоначальный взнос, % от цены'),
+      loan_amount: z.number().int().positive().optional().describe('Сумма кредита, сум (вместо price)'),
+      price: z.number().int().positive().optional().describe('Цена квартиры, сум (вместо loan_amount)'),
+      down_payment_percent: z.number().min(0).max(90).optional().describe('Первоначальный взнос, % от цены (только с price, по умолчанию 0)'),
       annual_rate_percent: z.number().min(0).max(100).describe('Ставка, % годовых'),
       years: z.number().int().min(1).max(30).describe('Срок, лет')
     }

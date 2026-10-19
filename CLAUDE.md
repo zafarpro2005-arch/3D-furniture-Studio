@@ -1,6 +1,6 @@
 # 3D Furniture Studio
 
-Статический сайт без сборки: `index.html` — новостройка (шахматка, план этажа, 3D), `planner.html` — планировщик мебели. Код в `js/`, стили в `style.css`.
+Статический сайт без сборки: `index.html` — новостройка (шахматка, план этажа, 3D), `planner.html` — планировщик мебели, `bookings.html` — заявки на показ (читает `booking.json` каждые 3 секунды, `js/bookings-app.js`). Код в `js/`, стили в `style.css`.
 
 Запуск: `python -m http.server 8765` → http://localhost:8765 (через файл `index.html` JSON не загрузится).
 

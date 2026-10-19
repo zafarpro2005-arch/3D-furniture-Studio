@@ -1,0 +1,19 @@
+{
+  "name": "novostroyka-mcp",
+  "version": "1.0.0",
+  "description": "MCP-сервер «Новостройка»: поиск квартир, ипотека и запись на показ (HTTP, порт 3001)",
+  "private": true,
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20.12"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "zod": "^3.25.0"
+  }
+}

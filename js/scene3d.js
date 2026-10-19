@@ -261,7 +261,7 @@
     var levelEl = ensureEl(el, 'scene-level');
 
     var gl = canvas.getContext('webgl', { antialias: true }) || canvas.getContext('experimental-webgl');
-    var prog, buf, glassBuf, doorBuf, doorGlassBuf, vertexCount = 0, glassCount = 0, doorCount = 0, doorGlassCount = 0, loc = {};
+    var prog, buf, glassBuf, doorBuf, doorGlassBuf, carBuf, vertexCount = 0, glassCount = 0, doorCount = 0, doorGlassCount = 0, carCount = 0, loc = {};
     var glReady = false; // шейдеры и буферы созданы, контекст жив
 
     // Шейдеры и буферы. Сбой WebGL (контекст потерян ещё до старта, драйвер не собрал шейдер)
@@ -289,6 +289,7 @@
         glassBuf = gl.createBuffer();
         doorBuf = gl.createBuffer();
         doorGlassBuf = gl.createBuffer();
+        carBuf = gl.createBuffer();
       } catch (e) {
         if (window.console) console.warn('3D недоступно:', e && e.message);
         return false;
@@ -386,7 +387,13 @@
     function blocked(x, z) {
       var r = PLAYER_R, b = bounds();
       if (x < b.x + r || z < b.z + r || x > b.x + b.width - r || z > b.z + b.length - r) return true;
-      return hits(S.world.blockers, x, z, r) || hits(S.doorBlockers || [], x, z, r);
+      if (hits(S.world.blockers, x, z, r) || hits(S.doorBlockers || [], x, z, r)) return true;
+      // в машину не войти; но если машина сама наехала (пешеход уже внутри) — выйти из неё можно
+      if (S.world.traffic && S.mode === 'walk') {
+        var cars = S.world.traffic.rects();
+        return hits(cars, x, z, r) && !hits(cars, S.walk.x, S.walk.z, r);
+      }
+      return false;
     }
     // Точка входа: заданная миром или у середины нижней стены; иначе ближайшее свободное место
     function spawnPoint() {
@@ -695,6 +702,8 @@
         liftEl.hidden = true;
       }
       updateDoors(dt);
+      // машины на улице: физика едет всегда, пешеход — только в прогулке
+      if (S.world.traffic) S.world.traffic.step(dt, S.mode === 'walk' && !S.ride ? { x: S.walk.x, z: S.walk.z } : null);
       draw();
     }
 
@@ -767,6 +776,14 @@
       if (doorCount) {
         bindAttribs(doorBuf);
         gl.drawArrays(gl.TRIANGLES, 0, doorCount);
+      }
+      if (S.world.traffic) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, carBuf);
+        var cars = S.world.traffic.mesh();
+        gl.bufferData(gl.ARRAY_BUFFER, cars, gl.DYNAMIC_DRAW);
+        carCount = cars.length / 10;
+        bindAttribs(carBuf);
+        gl.drawArrays(gl.TRIANGLES, 0, carCount);
       }
 
       // стекло и тюль — прозрачные, после всего остального (в обзоре срезаются вместе со стенами).
@@ -905,7 +922,8 @@
         return {
           mode: S.mode, walk: S.walk, vertices: vertexCount, glass: glassCount, doors: S.world ? S.world.doors.length : 0,
           level: S.world && S.world.level, lift: S.lift && S.lift.id, ride: S.ride && S.ride.phase,
-          target: !!S.target, fullscreen: !!document.fullscreenElement
+          target: !!S.target, fullscreen: !!document.fullscreenElement,
+          cars: S.world && S.world.traffic ? S.world.traffic.info() : null
         };
       },
       world: function () { return S.world; },

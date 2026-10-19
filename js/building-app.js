@@ -7,9 +7,9 @@
   var aptPlan = root.Planner.aptPlan;
   var $ = function (id) { return document.getElementById(id); };
 
-  var building = gen.generateBuilding();
+  // квартиры (номер, этаж, комнаты, площадь, цена, статус) — из apartments.json, см. start()
+  var building = null;
   var byNumber = {};
-  building.apartments.forEach(function (a) { byNumber[a.number] = a; });
   var parking = gen.generateParking();
 
   var state = {
@@ -21,7 +21,7 @@
     areas: []         // области квартир на плане этажа
   };
 
-  function money(v) { return '$ ' + Math.round(v).toLocaleString('ru-RU'); }
+  function money(v) { return Math.round(v).toLocaleString('ru-RU') + ' ' + t('currency'); }
   function roomName(rm) { return t('room_' + (rm.part === 'vest' ? 'hall' : rm.type)); }
   function matches(a) { return (!state.rooms || a.rooms === state.rooms) && (!state.onlyFree || a.status === 'free'); }
   function floorApts(f) { return building.apartments.filter(function (a) { return a.floor === f; }); }
@@ -305,18 +305,31 @@
   });
 
   // ---------- старт ----------
-  var m = /apt=(\d+)/.exec(location.hash);
-  var start = m && byNumber[+m[1]] ? +m[1] : null;
-  if (!start) {
-    // по умолчанию — свободная угловая квартира на 7 этаже
-    var pick = floorApts(7).filter(function (a) { return a.status === 'free' && a.position === 'corner'; })[0] || floorApts(7)[0];
-    start = pick.number;
-  }
-  state.selected = start;
-  state.floor = byNumber[start].floor;
+  function start(data) {
+    gen.setListing(data.apartments);
+    building = gen.generateBuilding();
+    building.apartments.forEach(function (a) { byNumber[a.number] = a; });
 
-  Planner.shell.init({
-    onLang: function () { renderStats(); renderAll(); },
-    onTheme: function () { if (state.selected) { renderFloor(); drawAptPlan(); } }
-  });
+    var m = /apt=(\d+)/.exec(location.hash);
+    var first = m && byNumber[+m[1]] ? +m[1] : null;
+    if (!first) {
+      // по умолчанию — свободная угловая квартира на 7 этаже
+      var pick = floorApts(7).filter(function (a) { return a.status === 'free' && a.position === 'corner'; })[0] || floorApts(7)[0];
+      first = pick.number;
+    }
+    state.selected = first;
+    state.floor = byNumber[first].floor;
+
+    Planner.shell.init({
+      onLang: function () { renderStats(); renderAll(); },
+      onTheme: function () { if (state.selected) { renderFloor(); drawAptPlan(); } }
+    });
+  }
+  fetch('apartments.json')
+    .then(function (r) { if (!r.ok) throw new Error('apartments.json: HTTP ' + r.status); return r.json(); })
+    .then(start)
+    .catch(function (e) {
+      console.error(e);
+      $('stats').textContent = t('aptsLoadError') + ' ' + e.message;
+    });
 })(this);

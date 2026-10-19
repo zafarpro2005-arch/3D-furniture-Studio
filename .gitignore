@@ -4,3 +4,10 @@
 .env
 .env.*
 !.env.example
+
+# MCP-сервер: зависимости ставит npm install
+mcp-server/node_modules/
+
+# записи на показ — имена и телефоны клиентов, в git не коммитим
+booking.json
+booking.json.tmp

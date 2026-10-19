@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Заявки на показ</title>
+  <script>
+    // тема до отрисовки страницы, чтобы не было вспышки светлого фона
+    try { document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark'); } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bookings-page" data-title="bookingsTitle">
+
+  <header class="topbar">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="3" y="3" width="26" height="26" rx="6" fill="none" stroke="currentColor" stroke-width="2.2"/>
+        <rect x="7" y="16" width="11" height="9" rx="1.5" fill="currentColor"/>
+        <rect x="20" y="7" width="5" height="18" rx="1.5" fill="currentColor" opacity=".55"/>
+      </svg>
+      <div>
+        <h1 data-i18n="bookingsTitle">Заявки на показ</h1>
+        <p class="subtitle" data-i18n="bookingsSubtitle"></p>
+      </div>
+    </div>
+    <nav class="seg nav" aria-label="Разделы">
+      <a href="planner.html" data-i18n="navPlanner">Планировщик</a>
+      <a href="./" data-i18n="navBuilding">Новостройка</a>
+      <a href="#" class="active" data-i18n="navBookings">Заявки</a>
+    </nav>
+    <div class="switches">
+      <div class="seg" role="group" aria-label="Тема">
+        <button type="button" data-theme-btn="dark"><span aria-hidden="true">☾</span> <span data-i18n="themeDark">Тёмная</span></button>
+        <button type="button" data-theme-btn="light"><span aria-hidden="true">☀</span> <span data-i18n="themeLight">Светлая</span></button>
+        <button type="button" data-theme-btn="eye"><span aria-hidden="true">◐</span> <span data-i18n="themeEye">Защита глаз</span></button>
+        <button type="button" data-theme-btn="minimal"><span aria-hidden="true">□</span> <span data-i18n="themeMinimal">Минимализм</span></button>
+      </div>
+      <div class="seg" role="group" aria-label="Язык / Til">
+        <button type="button" data-lang="ru">RU</button>
+        <button type="button" data-lang="uz">UZ</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="bookings">
+    <section class="card">
+      <div class="card-head">
+        <h2 data-i18n="bookingsTitle">Заявки на показ</h2>
+        <p class="live" id="status" role="status" aria-live="polite"><i class="live-dot" aria-hidden="true"></i><span id="statusText"></span></p>
+      </div>
+      <div class="table-wrap">
+        <table class="bookings-table" id="table" hidden>
+          <thead>
+            <tr>
+              <th data-i18n="colCreated">Создана</th>
+              <th data-i18n="colName">Имя</th>
+              <th data-i18n="colPhone">Телефон</th>
+              <th data-i18n="colApartment">Квартира</th>
+              <th data-i18n="colViewing">Показ</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p class="empty" id="empty" hidden data-i18n="bookingsEmpty">Заявок пока нет</p>
+      <p class="message bad" id="error" hidden></p>
+    </section>
+  </main>
+
+  <script src="js/i18n.js"></script>
+  <script src="js/shell.js"></script>
+  <script src="js/bookings-app.js"></script>
+</body>
+</html>

@@ -156,8 +156,33 @@
     return { row: row, i: i, position: position, cornerSide: cornerSide };
   }
 
+  // ---------- продажи: apartments.json ----------
+  // Этаж, комнаты, площадь, цена (в сумах) и статус квартиры берутся из apartments.json —
+  // по ним генератор строит планировку и мебель. Без файла (например, в Node) комнаты случайные.
+  var listing = {};
+  var STATUS = { for_sale: 'free', sold: 'sold' };
+  function setListing(list) {
+    var byNum = {};
+    list.forEach(function (a) {
+      var where = 'apartments.json, №' + a.number + ': ';
+      var k = a.number - (a.floor - 1) * B.perFloor - 1;
+      if (!(a.floor >= 1 && a.floor <= B.floors && k >= 0 && k < B.perFloor)) throw new Error(where + 'номер не с этого этажа');
+      var allowed = slotInfo(k).position === 'corner' ? [2, 3] : [1, 2];
+      if (allowed.indexOf(a.rooms) < 0) throw new Error(where + 'у этой квартиры может быть ' + allowed.join(' или ') + ' комнаты');
+      if (!(a.area > 0 && a.price > 0)) throw new Error(where + 'нужны площадь и цена');
+      if (!STATUS[a.status]) throw new Error(where + 'статус — for_sale или sold');
+      byNum[a.number] = a;
+    });
+    for (var n = 1; n <= B.floors * B.perFloor; n++) {
+      if (!byNum[n]) throw new Error('apartments.json: нет квартиры №' + n);
+    }
+    listing = byNum;
+  }
+
   // Число комнат: средние 1–2, угловые 2–3, на последнем этаже — больше
   function roomsFor(floor, k) {
+    var rec = listing[(floor - 1) * B.perFloor + k + 1];
+    if (rec) return rec.rooms;
     var r = rng(floor * 7717 + k * 59 + 3);
     if (slotInfo(k).position === 'corner') return floor === B.floors ? 3 : (r() < 0.5 ? 2 : 3);
     return floor === B.floors ? 2 : (r() < 0.45 ? 1 : 2);
@@ -331,10 +356,13 @@
     apt.area = Math.round(area / 1000) / 10;
     apt.livingArea = Math.round(livingArea / 1000) / 10;
     apt.kitchenArea = Math.round(kitchenArea / 1000) / 10;
-    apt.pricePerM2 = 1650 + floor * 40 + (corner ? 120 : 0) + (elite ? 450 : 0);
-    apt.price = Math.round(apt.area * apt.pricePerM2 / 1000) * 1000;
-    var rs = rng(number * 7919)();
-    apt.status = rs < 0.6 ? 'free' : (rs < 0.75 ? 'reserved' : 'sold');
+    var rec = listing[number];
+    if (rec) {
+      apt.area = rec.area;
+      apt.price = rec.price;
+      apt.pricePerM2 = Math.round(rec.price / rec.area / 1000) * 1000;
+      apt.status = STATUS[rec.status];
+    }
     return apt;
   }
 
@@ -893,6 +921,7 @@
     generateBuilding: generateBuilding,
     generateApartment: generateApartment,
     generateParking: generateParking,
+    setListing: setListing,
     floorLayout: floorLayout,
     transformApartment: transformApartment,
     checkPassages: checkPassages,

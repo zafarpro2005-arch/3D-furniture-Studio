@@ -37,11 +37,14 @@ test('search_apartments: фильтры, без проданных, по воз�
   assert.equal(searchApartments(apartments, {}).shown, 20);
 });
 
-test('get_apartments: по номеру и ошибка для несуществующего', () => {
+test('get_apartment: по номеру, строкой «№37» и понятные ошибки', () => {
   const a = getApartment(apartments, 37);
   assert.equal(a.number, 37);
   assert.equal(a.price_per_m2, Math.round(a.price / a.area));
-  assert.throws(() => getApartment(apartments, 999), /не найдена/);
+  assert.equal(getApartment(apartments, '№37').number, 37);
+  assert.throws(() => getApartment(apartments, 999), /^Error: Квартиры №999 нет\. В доме квартиры с №1 по №180\.$/);
+  assert.throws(() => getApartment(apartments, 'abc'), /не номер квартиры/);
+  assert.throws(() => getApartment(apartments, undefined), /Не указан номер/);
 });
 
 test('calc_mortgage: кредит 80 000 000, 24% годовых, 10 лет', () => {
@@ -69,20 +72,29 @@ test('calc_mortgage: аннуитет и нулевая ставка', () => {
   assert.equal(z.overpayment, 0);
 });
 
-test('booking_view: проверки входа', () => {
+test('book_viewing: заявка с id и временем создания, проверки и понятные ошибки', () => {
   const now = new Date('2026-10-20T06:00:00Z'); // 11:00 в Ташкенте
-  const free = apartments.find((a) => a.status === 'for_sale'), sold = apartments.find((a) => a.status === 'sold');
+  const forSale = apartments.filter((a) => a.status === 'for_sale'), sold = apartments.find((a) => a.status === 'sold');
+  const free = forSale[0];
   const ok = { name: 'Азиз', phone: '90 123 45 67', datetime: '2026-10-21T11:00', apartment: free.number };
   const list = [];
   const rec = addBooking(apartments, list, ok, now);
+  assert.equal(rec.id, 'BV-0001');
+  assert.equal(rec.created_at, now.toISOString());
   assert.equal(rec.phone, '+998901234567');
   assert.equal(list.length, 1);
-  assert.throws(() => addBooking(apartments, list, { ...ok, datetime: '2026-10-21T11:30' }, now), /занята/);
-  assert.throws(() => addBooking(apartments, [], { ...ok, datetime: '2026-10-19T11:00' }, now), /прошли/);
-  assert.throws(() => addBooking(apartments, [], { ...ok, datetime: '2026-10-21T22:00' }, now), /9:00/);
-  assert.throws(() => addBooking(apartments, [], { ...ok, datetime: '2026-02-31T11:00' }, now), /нет/);
+  assert.equal(addBooking(apartments, list, { ...ok, datetime: '2026-10-21T15:00' }, now).id, 'BV-0002');
+  // в то же время — занято, даже для другой квартиры; сервер подсказывает ближайшее свободное
+  assert.throws(() => addBooking(apartments, list, { ...ok, apartment: forSale[1].number, datetime: '2026-10-21T11:30' }, now),
+    /Время 21\.10\.2026 в 11:30 занято: на 11:00 уже записан показ квартиры №\d+ \(показ длится час\)\. Ближайшее свободное время в этот день — 12:00\./);
+  assert.throws(() => addBooking(apartments, list, { name: 'Азиз' }, now), /Не хватает данных для записи: телефон, дата и время, номер квартиры\./);
+  assert.throws(() => addBooking(apartments, [], { ...ok, phone: '123', apartment: 'abc' }, now), (e) => /Телефон «123»/.test(e.message) && /не номер квартиры/.test(e.message));
+  assert.throws(() => addBooking(apartments, [], { ...ok, datetime: 'завтра в 3' }, now), /Не понял дату и время/);
+  assert.throws(() => addBooking(apartments, [], { ...ok, datetime: '2026-10-19T11:00' }, now), /уже прошло — выберите время в будущем/);
+  assert.throws(() => addBooking(apartments, [], { ...ok, datetime: '2026-10-21T22:00' }, now), /Показы проходят с 9:00 до 20:00, а запрошено 22:00/);
+  assert.throws(() => addBooking(apartments, [], { ...ok, datetime: '2026-02-31T11:00' }, now), /Даты 31.02.2026 в 11:00 не существует/);
   assert.throws(() => addBooking(apartments, [], { ...ok, apartment: sold.number }, now), /продана/);
-  assert.throws(() => addBooking(apartments, [], { ...ok, apartment: 999 }, now), /не найдена/);
+  assert.throws(() => addBooking(apartments, [], { ...ok, apartment: 999 }, now), /Квартиры №999 нет/);
   assert.throws(() => normalizePhone('abc'), /Телефон/);
 });
 
@@ -104,21 +116,26 @@ test('с токеном: список инструментов, поиск и з
   const client = new Client({ name: 'test', version: '1.0.0' });
   await client.connect(new StreamableHTTPClientTransport(new URL(url), { requestInit: { headers: { Authorization: `Bearer ${TOKEN}` } } }));
   const names = (await client.listTools()).tools.map((t) => t.name).sort();
-  assert.deepEqual(names, ['booking_view', 'calc_mortgage', 'get_apartments', 'search_apartments']);
+  assert.deepEqual(names, ['book_viewing', 'calc_mortgage', 'get_apartment', 'search_apartments']);
 
   const s = await client.callTool({ name: 'search_apartments', arguments: { rooms: 1, limit: 3 } });
   assert.ok(!s.isError);
   assert.ok(s.structuredContent.apartments.length <= 3);
 
-  const bad = await client.callTool({ name: 'get_apartments', arguments: { number: 999 } });
+  const bad = await client.callTool({ name: 'get_apartment', arguments: { number: 999 } });
   assert.equal(bad.isError, true);
+  assert.equal(bad.content[0].text, 'Квартиры №999 нет. В доме квартиры с №1 по №180.');
+  const typo = await client.callTool({ name: 'book_viewing', arguments: { name: 'Тест', apartment: 'abc' } });
+  assert.equal(typo.content[0].text, 'Не хватает данных для записи: телефон, дата и время.');
 
   const free = apartments.find((a) => a.status === 'for_sale');
   const day = new Date(Date.now() + 2 * 864e5).toISOString().slice(0, 10);
-  const b = await client.callTool({ name: 'booking_view', arguments: { name: 'Тест', phone: '+998901112233', datetime: `${day}T12:00`, apartment: free.number } });
+  const b = await client.callTool({ name: 'book_viewing', arguments: { name: 'Тест', phone: '+998901112233', datetime: `${day}T12:00`, apartment: free.number } });
   assert.ok(!b.isError, b.content?.[0]?.text);
   const saved = JSON.parse(await readFile(path.join(dir, 'booking.json'), 'utf8'));
   assert.equal(saved.length, 1);
   assert.equal(saved[0].apartment, free.number);
+  assert.equal(saved[0].id, 'BV-0001');
+  assert.ok(saved[0].created_at);
   await client.close();
 });

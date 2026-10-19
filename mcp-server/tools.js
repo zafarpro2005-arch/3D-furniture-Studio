@@ -25,12 +25,6 @@ export function searchApartments(list, f = {}) {
   return { total: found.length, shown: Math.min(limit, found.length), currency: 'UZS', apartments: found.slice(0, limit).map(view) };
 }
 
-export function getApartment(list, number) {
-  const a = list.find((x) => x.number === number);
-  if (!a) throw new Error(`Квартира №${number} не найдена`);
-  return view(a);
-}
-
 // calc_mortgage: аннуитет. Платёж = S · r / (1 − (1 + r)^−n), где S — сумма кредита,
 // r — месячная ставка (годовая / 12 / 100), n — число месяцев. Общая сумма выплат — платёж × n
 // (платёж округлён до сума, как его и платят), переплата — выплаты минус кредит.
@@ -52,45 +46,102 @@ export function calcMortgage({ loan_amount, price, down_payment_percent = 0, ann
   return out;
 }
 
+// Номер квартиры: целое число (можно строкой «37» или «№37»), иначе — понятная ошибка
+export function parseNumber(value, apartments) {
+  const max = apartments.reduce((m, a) => Math.max(m, a.number), 0);
+  if (value === undefined || value === null || String(value).trim() === '') throw new Error('Не указан номер квартиры — например, 37.');
+  const n = typeof value === 'number' ? value : Number(String(value).replace(/^\s*№\s*/, '').trim());
+  if (!Number.isInteger(n) || n < 1) throw new Error(`«${value}» — не номер квартиры. Номер — целое число от 1 до ${max}, например 37.`);
+  return n;
+}
+function findApartment(apartments, value) {
+  const n = parseNumber(value, apartments);
+  const a = apartments.find((x) => x.number === n);
+  if (!a) {
+    const max = apartments.reduce((m, x) => Math.max(m, x.number), 0);
+    throw new Error(`Квартиры №${n} нет. В доме квартиры с №1 по №${max}.`);
+  }
+  return a;
+}
+
+// get_apartment: одна квартира по номеру
+export function getApartment(list, number) {
+  return view(findApartment(list, number));
+}
+
 // Телефон: +998XXXXXXXXX или 9 цифр местного номера (добавим +998); пробелы, скобки, дефисы допустимы
 export function normalizePhone(phone) {
   const s = String(phone).replace(/[\s()-]/g, '');
   if (/^\d{9}$/.test(s)) return '+998' + s;
   if (/^\+?\d{11,15}$/.test(s)) return s.startsWith('+') ? s : '+' + s;
-  throw new Error('Телефон: ожидается +998XXXXXXXXX или 9 цифр номера');
+  throw new Error(`Телефон «${phone}» не похож на номер. Укажите в формате +998 90 123 45 67.`);
 }
+
+const pad = (n) => String(n).padStart(2, '0');
+const at = (datetime) => new Date(datetime + ':00' + TZ_OFFSET);
+const human = (datetime) => `${datetime.slice(8, 10)}.${datetime.slice(5, 7)}.${datetime.slice(0, 4)} в ${datetime.slice(11)}`;
 
 // datetime — «YYYY-MM-DDTHH:MM» по Ташкенту
 export function parseVisitTime(datetime, now = new Date()) {
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(datetime)) throw new Error('Дата и время: формат YYYY-MM-DDTHH:MM (по Ташкенту)');
-  const t = new Date(datetime + ':00' + TZ_OFFSET);
-  if (isNaN(t)) throw new Error('Дата и время: такой даты нет');
-  // проверка, что дата не «перескочила» (31 февраля и т. п.)
-  const local = new Date(t.getTime() + 5 * 3600e3).toISOString().slice(0, 16);
-  if (local !== datetime) throw new Error('Дата и время: такой даты нет');
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(datetime)) {
+    throw new Error(`Не понял дату и время «${datetime}». Нужен формат ГГГГ-ММ-ДДTЧЧ:ММ по Ташкенту, например 2026-10-25T11:00.`);
+  }
+  const t = at(datetime);
+  // дата не должна «перескочить» (31 февраля, 25:00 и т. п.)
+  if (isNaN(t) || new Date(t.getTime() + 5 * 3600e3).toISOString().slice(0, 16) !== datetime) {
+    throw new Error(`Даты ${human(datetime)} не существует — проверьте число, месяц и время.`);
+  }
   const hour = Number(datetime.slice(11, 13));
-  if (hour < WORK_FROM || hour >= WORK_TO) throw new Error(`Показы — с ${WORK_FROM}:00 до ${WORK_TO}:00`);
-  if (t <= now) throw new Error('Дата и время показа уже прошли');
-  if (t - now > MAX_DAYS_AHEAD * 864e5) throw new Error(`Записаться можно не дальше чем на ${MAX_DAYS_AHEAD} дней вперёд`);
+  if (hour < WORK_FROM || hour >= WORK_TO) throw new Error(`Показы проходят с ${WORK_FROM}:00 до ${WORK_TO}:00, а запрошено ${datetime.slice(11)}. Выберите время в этом промежутке.`);
+  if (t <= now) throw new Error(`${human(datetime)} уже прошло — выберите время в будущем.`);
+  if (t - now > MAX_DAYS_AHEAD * 864e5) throw new Error(`Записаться можно не дальше чем на ${MAX_DAYS_AHEAD} дней вперёд.`);
   return t;
 }
 
-// booking_view: проверяет вход и добавляет запись в список (список потом сохраняет data.js)
+// Показ длится час: записи конфликтуют, если начинаются ближе чем через час друг от друга.
+// Один менеджер — один показ одновременно, поэтому проверяем по всему дому, а не только по квартире.
+const SLOT = 3600e3;
+function clash(bookings, t) {
+  return bookings.find((b) => b.status !== 'cancelled' && Math.abs(at(b.datetime) - t) < SLOT);
+}
+// ближайшее свободное время в тот же день (шаг 30 минут), не раньше «сейчас»
+function nearestFree(bookings, datetime, now) {
+  const day = datetime.slice(0, 10), want = at(datetime);
+  const slots = [];
+  for (let h = WORK_FROM; h < WORK_TO; h++) for (const m of [0, 30]) slots.push(`${day}T${pad(h)}:${pad(m)}`);
+  return slots
+    .filter((s) => at(s) > now && !clash(bookings, at(s)))
+    .sort((a, b) => Math.abs(at(a) - want) - Math.abs(at(b) - want))[0] || null;
+}
+
+// book_viewing: проверяет заявку и добавляет её в список (список сохраняет data.js под «замком»).
+// Ошибки по полям собираем вместе — клиенту не придётся исправлять их по одной.
 export function addBooking(apartments, bookings, input, now = new Date()) {
+  const fields = [['name', 'имя'], ['phone', 'телефон'], ['datetime', 'дата и время'], ['apartment', 'номер квартиры']];
+  const missing = fields.filter(([k]) => input[k] === undefined || input[k] === null || String(input[k]).trim() === '').map(([, v]) => v);
+  if (missing.length) throw new Error(`Не хватает данных для записи: ${missing.join(', ')}.`);
+
+  const problems = [];
   const name = String(input.name).trim().replace(/\s+/g, ' ');
-  if (name.length < 2 || name.length > 100 || /[\u0000-\u001f<>]/.test(name)) throw new Error('Имя: от 2 до 100 символов, без служебных знаков');
-  const phone = normalizePhone(input.phone);
-  const t = parseVisitTime(input.datetime, now);
-  const apt = apartments.find((a) => a.number === input.apartment);
-  if (!apt) throw new Error(`Квартира №${input.apartment} не найдена`);
-  if (apt.status !== 'for_sale') throw new Error(`Квартира №${apt.number} продана — показ невозможен`);
-  // одна квартира — один показ в час
-  const busy = bookings.some((b) => b.apartment === apt.number && b.status !== 'cancelled' &&
-    Math.abs(new Date(b.datetime + ':00' + TZ_OFFSET) - t) < 3600e3);
-  if (busy) throw new Error(`На ${input.datetime} квартира №${apt.number} уже занята — выберите другое время`);
+  if (name.length < 2 || name.length > 100 || /[\u0000-\u001f<>]/.test(name)) problems.push('Имя должно быть от 2 до 100 символов, без служебных знаков.');
+  const datetime = String(input.datetime).trim();
+  let phone, t, apt;
+  try { phone = normalizePhone(input.phone); } catch (e) { problems.push(e.message); }
+  try { t = parseVisitTime(datetime, now); } catch (e) { problems.push(e.message); }
+  try { apt = findApartment(apartments, input.apartment); } catch (e) { problems.push(e.message); }
+  if (apt && apt.status !== 'for_sale') problems.push(`Квартира №${apt.number} уже продана — показать её нельзя. Подберите другую квартиру.`);
+  if (problems.length) throw new Error(problems.join('\n'));
+
+  const other = clash(bookings, t);
+  if (other) {
+    const free = nearestFree(bookings, datetime, now);
+    throw new Error(`Время ${human(datetime)} занято: на ${other.datetime.slice(11)} уже записан показ квартиры №${other.apartment} (показ длится час). ` +
+      (free ? `Ближайшее свободное время в этот день — ${free.slice(11)}.` : 'В этот день свободного времени нет — выберите другой день.'));
+  }
+  const last = bookings.reduce((m, b) => Math.max(m, Number((/^BV-(\d+)$/.exec(b.id) || [])[1] || 0)), 0);
   const record = {
-    id: 'B' + now.getTime().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase(),
-    apartment: apt.number, name, phone, datetime: input.datetime, timezone: 'Asia/Tashkent',
+    id: 'BV-' + String(last + 1).padStart(4, '0'),
+    apartment: apt.number, name, phone, datetime, timezone: 'Asia/Tashkent',
     status: 'new', created_at: now.toISOString()
   };
   bookings.push(record);

@@ -41,10 +41,14 @@ export function buildMcpServer() {
     }
   }, (args) => run(async () => searchApartments(await loadApartments(), args)));
 
-  server.registerTool('get_apartments', {
+  // Поля get_apartment и book_viewing принимают и строку, и число, а проверяет их tools.js:
+  // так любая ошибка ввода приходит понятным русским текстом, а не технической строкой валидатора.
+  const loose = () => z.union([z.string(), z.number()]).optional();
+
+  server.registerTool('get_apartment', {
     title: 'Квартира по номеру',
     description: 'Данные одной квартиры по номеру: этаж, комнаты, площадь, цена и цена за м² (сум), статус.',
-    inputSchema: { number: z.number().int().min(1).describe('Номер квартиры') }
+    inputSchema: { number: loose().describe('Номер квартиры, целое число, например 37') }
   }, ({ number }) => run(async () => getApartment(await loadApartments(), number)));
 
   server.registerTool('calc_mortgage', {
@@ -59,14 +63,14 @@ export function buildMcpServer() {
     }
   }, (args) => run(async () => calcMortgage(args)));
 
-  server.registerTool('booking_view', {
+  server.registerTool('book_viewing', {
     title: 'Запись на показ',
-    description: 'Записывает на показ квартиры и сохраняет запись в booking.json. Время — по Ташкенту, показы 9:00–20:00. Перед вызовом подтвердите данные с клиентом.',
+    description: 'Записывает на показ квартиры: проверяет, что квартира существует и в продаже и что в это время нет другого показа (показ длится час), и сохраняет заявку с id и временем создания в booking.json. Время — по Ташкенту, 9:00–20:00. Перед вызовом подтвердите данные с клиентом.',
     inputSchema: {
-      name: z.string().min(2).max(100).describe('Имя клиента'),
-      phone: z.string().min(9).max(25).describe('Телефон: +998XXXXXXXXX'),
-      datetime: z.string().describe('Дата и время показа: YYYY-MM-DDTHH:MM (Ташкент)'),
-      apartment: z.number().int().min(1).describe('Номер квартиры')
+      name: loose().describe('Имя клиента'),
+      phone: loose().describe('Телефон: +998XXXXXXXXX'),
+      datetime: loose().describe('Дата и время показа: YYYY-MM-DDTHH:MM по Ташкенту, например 2026-10-25T11:00'),
+      apartment: loose().describe('Номер квартиры, например 37')
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false }
   }, (args) => run(async () => {

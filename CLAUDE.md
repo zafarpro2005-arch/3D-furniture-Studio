@@ -23,9 +23,9 @@
 
 Инструменты:
 - `search_apartments` — `rooms`, `max_price`, `min_area`, `floor`, `include_sold`, `limit` (все необязательны) → квартиры в продаже по возрастанию цены.
-- `get_apartments` — `number` → одна квартира (с ценой за м²) или ошибка.
+- `get_apartment` — `number` → одна квартира (с ценой за м²) или понятная ошибка («Квартиры №999 нет…»).
 - `calc_mortgage` — `loan_amount` **или** `price` + `down_payment_percent`; `annual_rate_percent`, `years` → месячная ставка, ежемесячный платёж (аннуитет), общая сумма выплат (платёж × месяцы), переплата.
-- `booking_view` — `name`, `phone`, `datetime` (`YYYY-MM-DDTHH:MM`, Ташкент, 9:00–20:00), `apartment` → запись в `booking.json`.
+- `book_viewing` — `name`, `phone`, `datetime` (`YYYY-MM-DDTHH:MM`, Ташкент, 9:00–20:00), `apartment` → проверяет, что квартира есть и в продаже и что в это время нет другого показа (час, по всему дому), сохраняет заявку `{id: "BV-0001", …, created_at}` в `booking.json`. Ошибки — русским текстом, с подсказкой ближайшего свободного времени.
 
 Запуск и проверка:
 ```bash

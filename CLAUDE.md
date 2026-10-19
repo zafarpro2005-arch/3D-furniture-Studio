@@ -38,4 +38,4 @@ npm start                                   # нужен MCP_TOKEN (≥ 16 си�
 "novostroyka": { "type": "http", "url": "http://127.0.0.1:3001/mcp", "headers": { "Authorization": "Bearer ${MCP_TOKEN}" } }
 ```
 
-Субагенты (`.claude/agents/`): `apartment-consultant` — подбор квартир (только чтение), `mortgage-advisor` — расчёт ипотеки, `booking-manager` — запись на показ (подтверждает данные с клиентом перед записью).
+Субагенты (`.claude/agents/`), у каждого только нужные инструменты: `podborschik` — подбор квартир, 3 лучших варианта с объяснением (`search_apartments`, `get_apartment`); `ipotechnyj-konsultant` — расчёт ипотеки, всегда с переплатой, без ставок банков (`calc_mortgage`); `menedzher-zapisi` — запись на показ, повторяет клиенту имя, телефон и время и ждёт подтверждения (`book_viewing`).
